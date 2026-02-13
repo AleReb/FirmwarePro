@@ -142,6 +142,8 @@ void parseGGA(const String &s) {
   if (fixQLast >= 1) {
     haveFix = true;
     lastFixMs = lastGgaMs;
+  } else {
+    haveFix = false;
   }
 
   float dlat = convertToDecimal(lat, latD);
@@ -167,6 +169,9 @@ void parseRMC(const String &s) {
     gpsLon = String(dlon, 6);
   }
   gpsStatus = (st == "A") ? "Fix" : "NoFix";
+  if (st != "A") {
+    haveFix = false;
+  }
   if (t.length() >= 6)
     gpsTime =
         t.substring(0, 2) + ":" + t.substring(2, 4) + ":" + t.substring(4, 6);

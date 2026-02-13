@@ -29,6 +29,7 @@ extern bool SDOK;
 extern bool loggingEnabled;
 extern bool streaming;
 extern bool haveFix;
+extern String gpsStatus;
 extern float batV;
 extern uint16_t PM25;
 extern float pmsTempC;
@@ -185,7 +186,7 @@ void drawHeader() {
   u8g2.drawStr(0, 9, getClockTime().c_str());
 
   // Satellite icon (custom bitmap)
-  if (haveFix) {
+  if (haveFix && gpsStatus == "Fix") {
     u8g2.drawXBMP(65, 1, 8, 8, satelit_bitmap); // Bitmap del satélite
     u8g2.setFont(u8g2_font_5x7_tf);
     u8g2.setCursor(73, 9);     // esto rompe con la nueva grafica del footer

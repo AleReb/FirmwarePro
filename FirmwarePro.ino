@@ -529,11 +529,9 @@ void setup() {
   sdSaveCounter = prefs.getUInt("sdCnt", 0);
   csvFileName = prefs.getString("csvFile", "");
   wasStreamingBeforeBoot = prefs.getBool("streaming", false);
-  // Etapa de integracion: iniciar SIEMPRE en false y sin autostart.
-  prefs.putBool("streaming", false);
   prefs.end();
 
-  // Etapa de integracion: separar control de transmisión y guardado.
+  // Estado runtime por defecto.
   streaming = false;
   loggingEnabled = false;
 
@@ -661,20 +659,36 @@ void setup() {
   esp_task_wdt_add(NULL);
 
   // SD Auto Mount
-  // Etapa de integracion:
-  // - Se verifica SD al inicio.
-  // - NO se inicia guardado ni transmisión automáticamente.
-  // - El archivo diario se define como hiripro<ID>_DD_MM_YYYY.csv.
+  // Política actual:
+  // - Verificar SD al inicio.
+  // - Si antes estaba activo y el reinicio fue "solo" (no SW manual),
+  //   reanudar streaming+logging.
   if (config.sdAutoMount || wasStreamingBeforeBoot) {
     spiSD.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_CS);
     SDOK = SD.begin(SD_CS, spiSD);
     if (SDOK) {
-      csvFileName = generateCSVFileName();
+      if (!csvFileName.length() || !SD.exists(csvFileName.c_str())) {
+        csvFileName = generateCSVFileName();
+        writeCSVHeader();
+      }
+
       prefs.begin("system", false);
       prefs.putString("csvFile", csvFileName);
-      prefs.putBool("streaming", false);
       prefs.end();
-      Serial.println("[BOOT] SD detected. Logging/streaming remain OFF by design");
+
+      bool rebootWasUnexpected =
+          (rebootReason == "Panic" || rebootReason == "IntWatchdog" ||
+           rebootReason == "TaskWatchdog" || rebootReason == "OtherWatchdog" ||
+           rebootReason == "Brownout" || rebootReason == "Unknown");
+
+      if (wasStreamingBeforeBoot && rebootWasUnexpected) {
+        streaming = true;
+        loggingEnabled = true;
+        writeErrorLogHeader();
+        Serial.println("[BOOT] Auto-resume enabled (previous state + unexpected reboot)");
+      } else {
+        Serial.println("[BOOT] SD detected. Streaming/logging remain OFF");
+      }
     }
   }
 
