@@ -50,7 +50,7 @@ const byte CMD = 0xB4;
 const byte TAIL = 0xAB;
 
 // Version
-String VERSION = "Pro V0.0.7";
+String VERSION = "Pro V0.0.8";
 
 // Pins
 #define UART_BAUD 115200
@@ -618,6 +618,9 @@ void setup() {
   btn1.attachClick(ui_btn1_click);
   btn2.attachClick(ui_btn2_click);
   btn2.attachLongPressStart(ui_btn2_hold);
+  btn1.setDebounceTicks(40);
+  btn2.setDebounceTicks(40);
+  btn2.setClickTicks(250);
   btn2.setPressTicks(500);
 
   // MODEM

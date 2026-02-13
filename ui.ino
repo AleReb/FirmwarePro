@@ -114,6 +114,18 @@ Menu menus[] = {
 uint8_t menuDepth = 0; // 0 = principal, 1+ = submenus
 uint8_t menuIndex = 0; // Índice seleccionado
 
+// Guard de acciones UI para evitar dobles disparos por rebote/eventos solapados.
+static uint32_t uiLastActionMs = 0;
+const uint32_t UI_ACTION_GUARD_MS = 180;
+
+static bool uiCanHandleAction() {
+  uint32_t now = millis();
+  if (now - uiLastActionMs < UI_ACTION_GUARD_MS)
+    return false;
+  uiLastActionMs = now;
+  return true;
+}
+
 // --- Button Instances (defined in main but used here) ---
 // Declared extern in main helpers if needed, but we can access valid objects if
 // they are global. We will define specific handler functions here that main
@@ -375,6 +387,8 @@ void handleConfigWifi() {
 // Evento BTN1: avanza selección en el menú activo.
 // Reactiva OLED si estaba en ahorro de energía.
 void ui_btn1_click() {
+  if (!uiCanHandleAction())
+    return;
   menuIndex = (menuIndex + 1) % menus[menuDepth].count;
   lastOledActivity = millis();
   if (config.oledAutoOff)
@@ -385,6 +399,8 @@ void ui_btn1_click() {
 // Evento BTN2 corto: entra/selecciona opciones del menú.
 // Controla navegación entre niveles y acciones no críticas.
 void ui_btn2_click() {
+  if (!uiCanHandleAction())
+    return;
   lastOledActivity = millis();
   if (config.oledAutoOff)
     u8g2.setPowerSave(0);
@@ -432,6 +448,8 @@ void ui_btn2_click() {
 // Evento BTN2 largo: start/stop del flujo principal en pantalla raíz.
 // En submenús actúa como retorno rápido al nivel anterior.
 void ui_btn2_hold() {
+  if (!uiCanHandleAction())
+    return;
   lastOledActivity = millis();
   if (config.oledAutoOff)
     u8g2.setPowerSave(0);
@@ -451,7 +469,6 @@ void ui_btn2_hold() {
       u8g2.setFont(u8g2_font_open_iconic_all_4x_t);
       u8g2.drawGlyph(48, 48, 0x00F9); // Stop icon (square)
       u8g2.sendBuffer();
-      delay(1000);
     } else {
       // START (solo transmisión)
       // NOTA: por diseño de integración, NO habilitar logging al iniciar.
@@ -481,7 +498,6 @@ void ui_btn2_hold() {
       u8g2.setFont(u8g2_font_open_iconic_all_4x_t);
       u8g2.drawGlyph(48, 48, 0x00E9); // Play icon
       u8g2.sendBuffer();
-      delay(1000);
     }
   } else {
     // Submenus: Go Back
