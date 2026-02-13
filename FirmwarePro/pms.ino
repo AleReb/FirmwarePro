@@ -1,5 +1,9 @@
 // -------------------- PMS non-blocking parser (now with T/RH)
 // --------------------
+#include "config.h"
+extern Adafruit_NeoPixel pixels;
+extern SoftwareSerial pms;
+
 void readPMS() {
   // Ingest bytes
   while (pms.available() > 0) {

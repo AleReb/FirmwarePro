@@ -12,20 +12,19 @@
  * - WiFi AP for File Management
  */
 
-// Modem definition must be before include
-#define TINY_GSM_MODEM_SIM7600
+// Modem definition moved to config.h
 
 #include "Adafruit_SHT31.h"
 #include "FS.h"
 #include "SD.h"
 #include "SPI.h"
-#include <Adafruit_NeoPixel.h>
-#include <Arduino.h>
+// #include <Adafruit_NeoPixel.h> // Moved to config.h
+// #include <Arduino.h> // Included in config.h
 #include <OneButton.h>
 #include <Preferences.h>
 #include <RTClib.h>
 #include <SoftwareSerial.h>
-#include <TinyGsmClient.h>
+// #include <TinyGsmClient.h> // Moved to config.h
 #include <U8g2lib.h>
 #include <WebServer.h>
 #include <WiFi.h>
@@ -33,47 +32,35 @@
 #include <esp_task_wdt.h>
 
 // -------------------- DEFINES & GLOBALS --------------------
+#include "config.h"
+
 // Modem modem
-#define TINY_GSM_RX_BUFFER 4096
+// #define TINY_GSM_RX_BUFFER 4096 // Moved to config.h
 #define SerialAT Serial1
 TinyGsm modem(SerialAT);
 
-// --- FIX: Missing Constants ---
-#define SD_SAVE_DISPLAY_MS 2000
+// --- Missing global constants/state restored for broken build ---
 #define RTC_PROBE_PERIOD_MS 60000
 #define RTC_SYNC_THRESHOLD 30
 #define MIN_VALID_EPOCH 1672531200 // 2023-01-01
 
-// SDS198 Protocol Constants
+// SDS198 protocol constants
 const byte HEADER = 0xAA;
 const byte CMD = 0xB4;
 const byte TAIL = 0xAB;
 
-// Version
-String VERSION = "Pro V0.0.17";
+// Firmware version
+String VERSION = "Pro V0.0.18";
 
-// Pins
-#define UART_BAUD 115200
-#define MODEM_TX 27
-#define MODEM_RX 26
-#define MODEM_PWRKEY 4
-#define MODEM_DTR 32
-#define MODEM_FLIGHT 25
+// Global states
+bool rtcOK = false;
+bool SHT31OK = false;
+bool SDOK = false;
+bool wifiModeActive = false;
+bool hasRed = false;
 
-#define pms_TX 5
-#define pms_RX 18
-
-// #define SDS198RX_PIN 39
-// #define SDS198TX_PIN 0
-//  Note: SDS198 uses Serial2 (HardwareSerial)
-
-#define BAT_PIN 35
-#define NEOPIX_PIN 12
-#define NUMPIXELS 1
-
-#define BUTTON_PIN_1 19
-#define BUTTON_PIN_2 23
-#define POWER_PIN 33
+// Config Instance
+SystemConfig config;
 
 // Objects
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/U8X8_PIN_NONE);
@@ -90,20 +77,6 @@ SoftwareSerial pms(pms_TX, pms_RX);
 // OneButton
 OneButton btn1(BUTTON_PIN_1, true);
 OneButton btn2(BUTTON_PIN_2, true);
-
-// Global Variables
-bool rtcOK = false;
-bool SHT31OK = false;
-bool SDOK = false;
-bool loggingEnabled = false;
-bool streaming = false;
-bool wifiModeActive = false;
-bool hasRed = false;
-
-#include "config.h"
-
-// Config Instance
-SystemConfig config;
 
 // Data Variables
 uint16_t PM1 = 0, PM25 = 0, PM10 = 0;
@@ -123,6 +96,9 @@ String gpsStatus = "NoFix";
 String gpsSpeedKmh = "0.0";
 
 // Internal Logic Variables
+bool loggingEnabled = false;
+bool streaming = false;
+
 String csvFileName = "";
 String logFilePath = "";
 String failedTxPath = "";
@@ -702,7 +678,8 @@ void setup() {
       prefs.end();
 
       // Autoresume SOLO en reinicios claramente inesperados por watchdog/panic.
-      // Evita retomar streaming tras reinicios manuales, power-on o estados ambiguos.
+      // Evita retomar streaming tras reinicios manuales, power-on o estados
+      // ambiguos.
       bool rebootWasUnexpected =
           (rebootReason == "Panic" || rebootReason == "IntWatchdog" ||
            rebootReason == "TaskWatchdog" || rebootReason == "OtherWatchdog");

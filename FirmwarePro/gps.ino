@@ -1,7 +1,5 @@
-﻿// -------------------- External Variables --------------------
 // -------------------- External Variables --------------------
 #include "config.h"
-#include <TinyGsmClient.h>
 extern SystemConfig config;
 extern struct AtSession at;
 extern TinyGsm modem;
@@ -13,6 +11,7 @@ extern uint32_t gnssStartMs, lastFixMs, lastGgaMs, lastNmeaMs, lastNmeaSeenMs;
 extern uint16_t nmeaCount1s, nmeaRate;
 extern uint32_t nmeaRefMs;
 extern uint8_t fixQLast;
+extern bool gnssFixReported;
 
 // GSA/GSV
 extern uint8_t gsaFixType, gsaSatsUsed;
@@ -485,4 +484,3 @@ void downloadXtraIfDue() {
   if (downloadXtraOnce())
     lastXtraDownload = millis();
 }
-

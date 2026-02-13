@@ -1,4 +1,4 @@
-﻿// -------------------- UI & Display Logic --------------------
+// -------------------- UI & Display Logic --------------------
 // Integrates functionality from HIRI_PR0_MENU with GPSDebug backend data
 #include <OneButton.h>
 #include <U8g2lib.h>
@@ -8,11 +8,9 @@
 // --------------------
 // -------------------- UI --------------------
 #include "config.h"
-#include <Adafruit_NeoPixel.h>
 #include <RTClib.h>
 #include <SD.h>
 #include <SPI.h>
-#include <TinyGsmClient.h>
 #include <U8g2lib.h>
 
 extern SPIClass spiSD;
@@ -41,7 +39,6 @@ extern float pmsTempC;
 extern float pmsHum;
 extern String satellitesStr;
 extern struct AtSession at;
-#include "config.h"
 extern SystemConfig config;
 extern volatile enum DisplayState displayState;
 extern volatile uint32_t displayStateStartTime;
@@ -66,6 +63,17 @@ struct Menu {
 // Satellite icon 8x8, 1 bit/pixel, LSB first
 static const unsigned char PROGMEM satelit_bitmap[8] = {0x06, 0x6E, 0x74, 0x38,
                                                         0x58, 0xE5, 0xC1, 0x07};
+
+// Global for non-blocking UI messages
+char uiMessage[21] = "";
+
+// Helper to show message non-blocking
+void showMessage(const char *msg) {
+  strncpy(uiMessage, msg, sizeof(uiMessage) - 1);
+  uiMessage[sizeof(uiMessage) - 1] = '\0';
+  displayState = DISP_MESSAGE;
+  displayStateStartTime = millis();
+}
 
 // Menú Principal
 const char *topItems[] = {"PM2.5", "Temperatura", "Humedad", "Empezar Muestreo",
@@ -116,17 +124,19 @@ const uint16_t infoIcons[] = {
 };
 
 Menu menus[] = {
-    {topItems, topIcons, sizeof(topItems) / sizeof(topItems[0])},   // 0: Main
-    {SubItems, SubIcons, sizeof(SubItems) / sizeof(SubItems[0])},   // 1: Opciones
-    {msgItems, msgIcons, sizeof(msgItems) / sizeof(msgItems[0])},   // 2: Mensajes
-    {cfgItems, cfgIcons, sizeof(cfgItems) / sizeof(cfgItems[0])},   // 3: Configuración
+    {topItems, topIcons, sizeof(topItems) / sizeof(topItems[0])}, // 0: Main
+    {SubItems, SubIcons, sizeof(SubItems) / sizeof(SubItems[0])}, // 1: Opciones
+    {msgItems, msgIcons, sizeof(msgItems) / sizeof(msgItems[0])}, // 2: Mensajes
+    {cfgItems, cfgIcons,
+     sizeof(cfgItems) / sizeof(cfgItems[0])}, // 3: Configuración
     {infoItems, infoIcons, sizeof(infoItems) / sizeof(infoItems[0])} // 4: Info
 };
 
 uint8_t menuDepth = 0; // 0 = principal, 1+ = submenus
 uint8_t menuIndex = 0; // Índice seleccionado
 
-// Guard de acciones UI para evitar dobles disparos por rebote/eventos solapados.
+// Guard de acciones UI para evitar dobles disparos por rebote/eventos
+// solapados.
 static uint32_t uiLastActionMs = 0;
 const uint32_t UI_ACTION_GUARD_MS = 70;
 // Evita que un long click dispare también un click corto al soltar.
@@ -216,7 +226,7 @@ void drawBatteryDynamic(int xPos, int yPos, float v) {
 // Dibuja un indicador mínimo de estado para TX/SD sin ocupar mucho header.
 // enabled=feature ON, active=actividad reciente, ok=último resultado.
 void drawActivityDot(int x, bool enabled, bool active, bool ok) {
-  int y = 5;
+  int y = 6; // posicion vertical mas grande el numero mas abajo
   if (!enabled) {
     u8g2.drawCircle(x, y, 2);
     return;
@@ -241,26 +251,26 @@ void drawHeader() {
   bool txActive = (now - lastHttpActivityMs) < 1200;
   bool sdActive = (now - lastSdActivityMs) < 1200;
   u8g2.setFont(u8g2_font_4x6_tf);
-  u8g2.drawStr(24, 9, "T");
-  u8g2.drawStr(33, 9, "S");
-  drawActivityDot(30, streaming, txActive, lastHttpOk);
-  drawActivityDot(39, loggingEnabled, sdActive, lastSdOk);
+  u8g2.drawStr(41, 9, "S");
+  u8g2.drawStr(51, 9, "G");
+  drawActivityDot(47, streaming, txActive, lastHttpOk);
+  drawActivityDot(57, loggingEnabled, sdActive, lastSdOk);
 
   // Satellite icon + satélites (movido +10 px para evitar solape)
   if (haveFix && gpsStatus == "Fix") {
-    u8g2.drawXBMP(62, 1, 8, 8, satelit_bitmap);
+    u8g2.drawXBMP(63, 1, 8, 8, satelit_bitmap);
     u8g2.setFont(u8g2_font_5x7_tf);
-    u8g2.setCursor(70, 9);
+    u8g2.setCursor(73, 9);
     String sats = satellitesStr;
     if (sats.length() > 2)
-      sats = sats.substring(0, 2);
+      sats = "99";
     u8g2.print(sats);
   } else {
     u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
-    u8g2.drawGlyph(60, 9, 0x0118);
+    u8g2.drawGlyph(68, 9, 0x0118);
   }
 
-  // WiFi/Signal (movido +10 px para evitar solape)
+  // Signal (movido +10 px para evitar solape)
   bool networkError = (csq == 99);
   if (networkError) {
     u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
@@ -377,6 +387,18 @@ void renderDisplay() {
     } else {
       displayState = DISP_NORMAL;
     }
+  } else if (displayState == DISP_MESSAGE) {
+    if (millis() - displayStateStartTime < DISP_MSG_DURATION_MS) {
+      u8g2.setFont(u8g2_font_6x12_tf);
+      // Center message
+      int w = u8g2.getStrWidth(uiMessage);
+      u8g2.drawStr((128 - w) / 2, 35, uiMessage);
+      drawFooterCircles(menus[menuDepth].count, menuIndex); // Keep context
+      u8g2.sendBuffer();
+      return;
+    } else {
+      displayState = DISP_NORMAL;
+    }
   }
 
   // Normal Menu Rendering
@@ -385,14 +407,6 @@ void renderDisplay() {
     // Items 0-2 son sensores (PM2.5, Temp, Hum)
     if (menuIndex < 3) {
       drawSensorValue(menuIndex);
-      // Also show small GPS info if available
-      if (menuIndex == 0 && haveFix) {
-        // esto rompe la integracion del footer  original podria mostrar cuando
-        // esta guardando en la sesion
-        // u8g2.setFont(u8g2_font_5x7_tf);
-        // u8g2.setCursor(0, 64);
-        // u8g2.print("Sats:" + satellitesStr);
-      }
     } else {
       // Items 3+ (Infos, Opciones)
       drawMenuItemWithIcon(menuDepth, menuIndex);
@@ -411,9 +425,16 @@ void renderDisplay() {
 // Muestra aviso visual y reinicia el ESP32 de forma controlada.
 // Se ejecuta desde menú de configuración.
 void handleRestart() {
-  u8g2.clearBuffer();
-  u8g2.drawStr(30, 30, "REINICIANDO...");
-  u8g2.sendBuffer();
+  showMessage("REINICIANDO...");
+  // Nota: ESP.restart() ocurrirá después, aquí solo iniciamos el mensaje
+  // En un sistema real no bloqueante, deberíamos setear un flag para reiniciar
+  // luego del mensaje Pero para simplificar, usaremos un pequeño delay justo
+  // antes del restart real si fuera crítico, aqui solo mostramos y esperamos un
+  // poco. Dado que restart mata todo, un delay aqui es aceptable
+  // excepcionalmente o mejor: no usamos delay, pero el usuario no verá mucho si
+  // reinicia de inmediato. Para hacerlo VERDADERAMENTE no bloqueante,
+  // necesitariamos un "pendingRestart" flag. Por ahora, aceptamos que REINICIO
+  // es una acción terminal.
   delay(1000);
   ESP.restart();
 }
@@ -457,8 +478,41 @@ void ui_btn2_click() {
     u8g2.setPowerSave(0);
 
   if (menuDepth == 0) {
-    // Main Menu: click corto navega/entra, pero NO activa muestreo.
-    if (menuIndex == 4) { // Opciones
+    // Main Menu
+    if (menuIndex == 3) { // Empezar Muestreo (TOGGLE)
+      if (streaming) {
+        // STOP ALL
+        streaming = false;
+        loggingEnabled = false;
+        prefs.begin("system", false);
+        prefs.putBool("streaming", false);
+        prefs.end();
+        showMessage("MUESTREO: OFF");
+        Serial.println("[UI] Muestreo detenido por usuario");
+      } else {
+        // START ALL
+        streaming = true;
+        // Init SD si hace falta
+        if (!SDOK) {
+          spiSD.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_CS);
+          SDOK = SD.begin(SD_CS, spiSD);
+        }
+        if (SDOK) {
+          csvFileName = generateCSVFileName();
+          writeCSVHeader();
+          prefs.begin("system", false);
+          prefs.putString("csvFile", csvFileName);
+          prefs.end();
+        }
+        loggingEnabled = SDOK; // Activa log solo si SD OK
+
+        prefs.begin("system", false);
+        prefs.putBool("streaming", true);
+        prefs.end();
+        showMessage("MUESTREO: ON");
+        Serial.println("[UI] Muestreo iniciado por usuario");
+      }
+    } else if (menuIndex == 4) { // Opciones
       menuDepth = 1;
       menuIndex = 0;
     }
@@ -478,21 +532,28 @@ void ui_btn2_click() {
       menuIndex = 0;
     }
   } else if (menuDepth == 2) {
-    // Mensajes: mantenerse en submenú al seleccionar acción (como menú base).
-    if (menuIndex < 3) {
-      Serial.println(String("[UI] Mensaje seleccionado: ") + menus[2].items[menuIndex]);
-    } else {
+    // Mensajes: Mostrar feedback NO BLOQUEANTE y mantenerse
+    if (menuIndex == 0) {
+      showMessage("Funcion Camion");
+      Serial.println("[UI] Accion: Camion");
+    } else if (menuIndex == 1) {
+      showMessage("Funcion Humo");
+      Serial.println("[UI] Accion: Humo");
+    } else if (menuIndex == 2) {
+      showMessage("CONSTRUCCION");
+      Serial.println("[UI] Accion: Construccion");
+    } else if (menuIndex == 3) { // Volver
       menuDepth = 1;
       menuIndex = 0;
     }
   } else if (menuDepth == 3) {
     // Configuration Menu
     if (menuIndex == 0) { // REDES (placeholder)
-      Serial.println("[CFG] REDES");
-    } else if (menuIndex == 1) { // GUARDADO (placeholder)
-      Serial.println("[CFG] GUARDADO");
-    } else if (menuIndex == 2) { // RTC (placeholder)
-      Serial.println("[CFG] RTC");
+      showMessage("REDES...");
+    } else if (menuIndex == 1) { // GUARDADO
+      showMessage("GUARDADO...");
+    } else if (menuIndex == 2) { // RTC
+      showMessage("RTC...");
     } else if (menuIndex == 3) { // Reiniciar
       handleRestart();
     } else if (menuIndex == 4) { // Volver
@@ -502,17 +563,20 @@ void ui_btn2_click() {
   } else if (menuDepth == 4) {
     // Información
     if (menuIndex == 0) {
-      Serial.println(String("[INFO] Version: ") + VERSION);
+      showMessage(VERSION.c_str());
     } else if (menuIndex == 1) {
-      Serial.println(String("[INFO] Bateria V=") + String(batV, 2));
+      String batStr =
+          String(batV, 2) + "V (" + String(calcBatteryPercent(batV)) + "%)";
+      showMessage(batStr.c_str());
     } else if (menuIndex == 2) {
-      Serial.println(String("[INFO] Mem free=") + String(ESP.getFreeHeap()));
-    } else if (menuIndex == 3) {
+      String memStr = "Free: " + String(ESP.getFreeHeap() / 1024) + "KB";
+      showMessage(memStr.c_str());
+    } else if (menuIndex == 3) { // Volver
       menuDepth = 1;
       menuIndex = 0;
     }
   } else {
-    // Generic Back for other menus
+    // Generic Back for other menus if added later
     if (strcmp(menus[menuDepth].items[menuIndex], "Volver") == 0) {
       menuDepth--;
       menuIndex = 0;
@@ -523,64 +587,10 @@ void ui_btn2_click() {
 }
 
 // BTN2 Hold: Action / Back
-// Evento BTN2 largo: start/stop del flujo principal en pantalla raíz.
-// En submenús actúa como retorno rápido al nivel anterior.
+// IGNORED as per User Request (No Long Click)
 void ui_btn2_hold() {
-  btn2LastLongMs = millis();
-  if (!uiCanHandleAction())
-    return;
-  lastOledActivity = millis();
-  if (config.oledAutoOff)
-    u8g2.setPowerSave(0);
-
-  if (menuDepth == 0) {
-    // HOLD en raíz solo controla muestreo cuando está seleccionado "Empezar Muestreo".
-    if (menuIndex != 3) {
-      return;
-    }
-
-    if (streaming) {
-      streaming = false;
-      loggingEnabled = false;
-      Serial.println("[UI] User Request: STOP Streaming/Logging");
-      prefs.begin("system", false);
-      prefs.putBool("streaming", false);
-      prefs.end();
-      u8g2.clearBuffer();
-      u8g2.setFont(u8g2_font_open_iconic_all_4x_t);
-      u8g2.drawGlyph(48, 48, 0x00F9);
-      u8g2.sendBuffer();
-    } else {
-      streaming = true;
-      loggingEnabled = false;
-
-      if (!SDOK) {
-        spiSD.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_CS);
-        SDOK = SD.begin(SD_CS, spiSD);
-      }
-      if (SDOK) {
-        csvFileName = generateCSVFileName();
-        prefs.begin("system", false);
-        prefs.putString("csvFile", csvFileName);
-        prefs.end();
-      }
-
-      Serial.println("[UI] User Request: START Streaming (logging OFF)");
-      prefs.begin("system", false);
-      prefs.putBool("streaming", true);
-      prefs.end();
-
-      u8g2.clearBuffer();
-      u8g2.setFont(u8g2_font_open_iconic_all_4x_t);
-      u8g2.drawGlyph(48, 48, 0x00E9);
-      u8g2.sendBuffer();
-    }
-  } else {
-    // HOLD en submenú = salir (back), como en HIRI menu base.
-    menuDepth--;
-    menuIndex = 0;
-    renderDisplay();
-  }
+  // Intencionalmente vacío para deshabilitar long click
+  return;
 }
 
 // Placeholder de máquina de estados UI para futuras extensiones.
@@ -589,4 +599,3 @@ void updateDisplayStateMachine() {
   // Nothing to update state-wise here, handled in renderDisplay and event
   // handlers
 }
-

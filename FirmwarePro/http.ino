@@ -1,4 +1,4 @@
-﻿// -------------------- HTTP helpers --------------------
+// -------------------- HTTP helpers --------------------
 #include "config.h"
 // -------------------- External Variables --------------------
 extern TinyGsm modem;

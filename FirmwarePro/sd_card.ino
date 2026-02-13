@@ -1,4 +1,4 @@
-﻿// -------------------- SD helpers --------------------
+// -------------------- SD helpers --------------------
 #include "config.h"
 extern SystemConfig config;
 // Genera nombre diario de CSV usando prefijo de dispositivo + fecha RTC.

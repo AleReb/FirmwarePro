@@ -1,0 +1,10 @@
+{
+    "[cpp]": {
+        "editor.formatOnSave": false
+    },
+    "[c]": {
+        "editor.formatOnSave": false
+    },
+    "C_Cpp.formatting": "Disabled",
+    "editor.formatOnSave": false
+}

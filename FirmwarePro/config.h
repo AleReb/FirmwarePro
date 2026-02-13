@@ -3,6 +3,33 @@
 
 #include <Arduino.h>
 
+// Modem definition must be before include
+#define TINY_GSM_MODEM_SIM7600
+#define TINY_GSM_RX_BUFFER 4096
+
+// Modem Pins (SIM7600)
+#define MODEM_TX 27
+#define MODEM_RX 26
+#define MODEM_PWRKEY 4
+#define MODEM_DTR 32
+#define MODEM_FLIGHT 25
+
+// PMS5003 Pins (SoftwareSerial)
+#define pms_RX 18
+#define pms_TX 5
+
+// Battery / Power
+#define BAT_PIN 35
+#define POWER_PIN 33
+#define NEOPIX_PIN 12
+#define NUMPIXELS 1
+#define BUTTON_PIN_1 19
+#define BUTTON_PIN_2 23
+
+#include <Adafruit_NeoPixel.h>
+#include <Arduino.h>
+#include <TinyGsmClient.h>
+
 // -------------------- Configuration System --------------------
 struct SystemConfig {
   // SD Card
@@ -33,6 +60,7 @@ struct SystemConfig {
 };
 
 // -------------------- Display State Machine --------------------
-enum DisplayState { DISP_NORMAL, DISP_SD_SAVED };
+enum DisplayState { DISP_NORMAL, DISP_SD_SAVED, DISP_MESSAGE };
+#define DISP_MSG_DURATION_MS 1500
 
 #endif
