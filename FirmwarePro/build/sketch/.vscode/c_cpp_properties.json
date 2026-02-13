@@ -1,10 +1,11 @@
+#line 1 "C:\\gitshubs\\HIRIPROBASE01\\FirmwarePro_Roto\\FirmwarePro\\.vscode\\c_cpp_properties.json"
 {
   "configurations": [
     {
       "name": "Arduino",
       "includePath": [
         "C:\\Users\\Ale\\Documents\\Arduino\\libraries/**",
-        "C:\\gitshubs\\HIRIPROBASE01\\FirmwarePro_Roto\\FirmwarePro/**",
+        "C:\\gitshubs\\HIRIPROBASE01\\FirmwarePro/**",
         "C:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\tools\\sdk\\esp32\\include\\newlib\\platform_include/**",
         "C:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\tools\\sdk\\esp32\\include\\freertos\\include/**",
         "C:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\tools\\sdk\\esp32\\include\\freertos\\include\\esp_additions\\freertos/**",
@@ -207,15 +208,15 @@
         "C:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\libraries\\FS\\src/**",
         "C:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\libraries\\SD\\src/**",
         "C:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\libraries\\SPI\\src/**",
+        "C:\\Users\\Ale\\Documents\\Arduino\\libraries\\Adafruit_NeoPixel/**",
         "C:\\Users\\Ale\\Documents\\Arduino\\libraries\\OneButton\\src/**",
         "C:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\libraries\\Preferences\\src/**",
         "C:\\Users\\Ale\\Documents\\Arduino\\libraries\\RTClib\\src/**",
         "C:\\Users\\Ale\\Documents\\Arduino\\libraries\\EspSoftwareSerial\\src/**",
+        "C:\\Users\\Ale\\Documents\\Arduino\\libraries\\TinyGSM\\src/**",
         "C:\\Users\\Ale\\Documents\\Arduino\\libraries\\U8g2\\src/**",
         "C:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\libraries\\WebServer\\src/**",
-        "C:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\libraries\\WiFi\\src/**",
-        "C:\\Users\\Ale\\Documents\\Arduino\\libraries\\Adafruit_NeoPixel/**",
-        "C:\\Users\\Ale\\Documents\\Arduino\\libraries\\TinyGSM\\src/**"
+        "C:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\libraries\\WiFi\\src/**"
       ],
       "forcedInclude": [
         "C:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\cores\\esp32\\Arduino.h"
@@ -461,8 +462,8 @@
         "-DARDUINO_RUNNING_CORE=1",
         "-DARDUINO_EVENT_RUNNING_CORE=1",
         "-DARDUINO_USB_CDC_ON_BOOT=0",
-        "@c:\\gitshubs\\HIRIPROBASE01\\FirmwarePro_Roto\\FirmwarePro\\build/build_opt.h",
-        "@c:\\gitshubs\\HIRIPROBASE01\\FirmwarePro_Roto\\FirmwarePro\\build/file_opts",
+        "@C:\\gitshubs\\HIRIPROBASE01\\FirmwarePro\\build/build_opt.h",
+        "@C:\\gitshubs\\HIRIPROBASE01\\FirmwarePro\\build/file_opts",
         "-IC:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\cores\\esp32",
         "-IC:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\variants\\esp32",
         "-IC:\\Users\\Ale\\Documents\\Arduino\\libraries\\Adafruit_SHT31_Library",
@@ -471,18 +472,18 @@
         "-IC:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\libraries\\FS\\src",
         "-IC:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\libraries\\SD\\src",
         "-IC:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\libraries\\SPI\\src",
+        "-IC:\\Users\\Ale\\Documents\\Arduino\\libraries\\Adafruit_NeoPixel",
         "-IC:\\Users\\Ale\\Documents\\Arduino\\libraries\\OneButton\\src",
         "-IC:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\libraries\\Preferences\\src",
         "-IC:\\Users\\Ale\\Documents\\Arduino\\libraries\\RTClib\\src",
         "-IC:\\Users\\Ale\\Documents\\Arduino\\libraries\\EspSoftwareSerial\\src",
+        "-IC:\\Users\\Ale\\Documents\\Arduino\\libraries\\TinyGSM\\src",
         "-IC:\\Users\\Ale\\Documents\\Arduino\\libraries\\U8g2\\src",
         "-IC:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\libraries\\WebServer\\src",
         "-IC:\\Users\\Ale\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.17\\libraries\\WiFi\\src",
-        "-IC:\\Users\\Ale\\Documents\\Arduino\\libraries\\Adafruit_NeoPixel",
-        "-IC:\\Users\\Ale\\Documents\\Arduino\\libraries\\TinyGSM\\src",
-        "c:\\gitshubs\\HIRIPROBASE01\\FirmwarePro_Roto\\FirmwarePro\\build\\sketch\\FirmwarePro.ino.cpp",
+        "C:\\gitshubs\\HIRIPROBASE01\\FirmwarePro\\build\\sketch\\FirmwarePro.ino.cpp",
         "-o",
-        "c:\\gitshubs\\HIRIPROBASE01\\FirmwarePro_Roto\\FirmwarePro\\build\\sketch\\FirmwarePro.ino.cpp.o"
+        "C:\\gitshubs\\HIRIPROBASE01\\FirmwarePro\\build\\sketch\\FirmwarePro.ino.cpp.o"
       ],
       "defines": [
         "HAVE_CONFIG_H",
