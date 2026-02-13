@@ -50,7 +50,7 @@ const byte CMD = 0xB4;
 const byte TAIL = 0xAB;
 
 // Version
-String VERSION = "Pro V0.0.12";
+String VERSION = "Pro V0.0.13";
 
 // Pins
 #define UART_BAUD 115200
@@ -626,8 +626,9 @@ void setup() {
   // Ajuste de respuesta de botones para navegación de menús más ágil.
   btn1.setDebounceTicks(20);
   btn2.setDebounceTicks(20);
-  btn2.setClickTicks(180);
-  btn2.setPressTicks(450);
+  btn2.setClickTicks(160);
+  // Hold más largo para evitar activaciones accidentales durante navegación.
+  btn2.setPressTicks(800);
 
   // MODEM
   SerialAT.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);

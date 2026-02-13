@@ -209,30 +209,36 @@ void drawBatteryDynamic(int xPos, int yPos, float v) {
   }
 }
 
-// Dibuja un interruptor de estado con icono en header para UPLINK/SD.
-// enabled=modo activo, active=actividad reciente, ok=resultado último intento.
-void drawActivitySwitch(int x, uint16_t icon, bool enabled, bool active, bool ok) {
-  // Icono superior
-  u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
-  u8g2.drawGlyph(x + 2, 8, icon);
-
-  // Interruptor (12x7)
+// Dibuja un interruptor compacto en header para TX/SD, con icono vectorial simple.
+// isTx=true dibuja flecha de subida; isTx=false dibuja icono de "disk/save".
+void drawActivitySwitch(int x, bool isTx, bool enabled, bool active, bool ok) {
   const int y = 1;
-  u8g2.drawRFrame(x + 8, y, 12, 7, 2);
 
-  // Knob: izquierda OFF, derecha ON
-  int knobX = enabled ? (x + 14) : (x + 9);
-  u8g2.drawBox(knobX, y + 1, 5, 5);
-
-  // Actividad reciente: “halo” para mostrar operación viva.
-  if (active) {
-    u8g2.drawFrame(x + 7, y, 14, 9);
+  // Icono simple (sin fuentes especiales para evitar glifos raros).
+  if (isTx) {
+    // Flecha de subida
+    u8g2.drawLine(x + 1, y + 6, x + 3, y + 2);
+    u8g2.drawLine(x + 5, y + 6, x + 3, y + 2);
+    u8g2.drawLine(x + 3, y + 2, x + 3, y + 7);
+  } else {
+    // "Disk" minimal
+    u8g2.drawFrame(x + 1, y + 1, 5, 6);
+    u8g2.drawBox(x + 2, y + 2, 3, 2);
   }
 
-  // Error último intento: pixel de alerta
+  // Switch compacto (9x6)
+  u8g2.drawRFrame(x + 8, y + 1, 9, 6, 2);
+  int knobX = enabled ? (x + 12) : (x + 9);
+  u8g2.drawBox(knobX, y + 2, 4, 4);
+
+  // Actividad reciente: borde extra
+  if (active) {
+    u8g2.drawFrame(x + 7, y, 11, 8);
+  }
+
+  // Error último intento
   if (enabled && !ok) {
-    u8g2.drawPixel(x + 21, y);
-    u8g2.drawPixel(x + 20, y + 1);
+    u8g2.drawPixel(x + 18, y);
   }
 }
 
@@ -240,19 +246,18 @@ void drawHeader() {
   u8g2.setFont(u8g2_font_5x7_tf);
   u8g2.drawStr(0, 9, getClockTime().c_str());
 
-  // Indicadores críticos en formato interruptor (TX/SD)
-  // Reubicados para no romper bloque de señal y batería.
+  // Indicadores críticos compactos (TX/SD) para evitar saturar header.
   uint32_t now = millis();
   bool txActive = (now - lastHttpActivityMs) < 1200;
   bool sdActive = (now - lastSdActivityMs) < 1200;
-  drawActivitySwitch(22, 0x01F4, streaming, txActive, lastHttpOk);
-  drawActivitySwitch(40, 0x0176, loggingEnabled, sdActive, lastSdOk);
+  drawActivitySwitch(24, true, streaming, txActive, lastHttpOk);   // TX
+  drawActivitySwitch(42, false, loggingEnabled, sdActive, lastSdOk); // SD
 
   // Satellite icon + satélites
   if (haveFix && gpsStatus == "Fix") {
     u8g2.drawXBMP(60, 1, 8, 8, satelit_bitmap);
     u8g2.setFont(u8g2_font_5x7_tf);
-    u8g2.setCursor(69, 9);
+    u8g2.setCursor(68, 9);
     String sats = satellitesStr;
     if (sats.length() > 2)
       sats = sats.substring(0, 2);
@@ -266,12 +271,12 @@ void drawHeader() {
   bool networkError = (csq == 99);
   if (networkError) {
     u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
-    u8g2.drawGlyph(78, 9, 0x0118);
+    u8g2.drawGlyph(76, 9, 0x0118);
   } else {
     u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
-    u8g2.drawGlyph(78, 9, 0x00FD);
+    u8g2.drawGlyph(76, 9, 0x00FD);
     u8g2.setFont(u8g2_font_5x7_tf);
-    u8g2.setCursor(86, 9);
+    u8g2.setCursor(84, 9);
     String csqStr = String(csq);
     if (csqStr.length() > 2)
       csqStr = csqStr.substring(0, 2);
@@ -279,7 +284,7 @@ void drawHeader() {
   }
 
   // Batería al extremo derecho, lejos de switches/CSQ.
-  drawBatteryDynamic(106, 3, batV);
+  drawBatteryDynamic(108, 3, batV);
 }
 
 // Dibuja indicadores de paginación del menú en el footer OLED.
@@ -575,9 +580,9 @@ void ui_btn2_hold() {
       u8g2.sendBuffer();
     }
   } else {
-    // Submenus: Go Back
-    menuDepth--;
-    menuIndex = 0;
+    // En submenús, HOLD no debe disparar acciones de streaming.
+    // Se ignora para evitar cambios accidentales durante navegación.
+    return;
   }
 }
 
