@@ -31,6 +31,10 @@ extern bool streaming;
 extern bool haveFix;
 extern String gpsStatus;
 extern float batV;
+extern uint32_t lastHttpActivityMs;
+extern uint32_t lastSdActivityMs;
+extern bool lastHttpOk;
+extern bool lastSdOk;
 extern uint16_t PM25;
 extern float pmsTempC;
 extern float pmsHum;
@@ -201,9 +205,43 @@ void drawBatteryDynamic(int xPos, int yPos, float v) {
 
 // Renderiza cabecera de pantalla (hora, GNSS, señal y batería).
 // Refleja estado de fix y conectividad en tiempo real.
+// Dibuja badge de actividad para transmisión (U) o guardado SD (S).
+// enabled=modo activo, active=actividad reciente, ok=último resultado.
+void drawActivityBadge(int x, char label, bool enabled, bool active, bool ok) {
+  // Caja 8x8 sobre header superior
+  u8g2.drawFrame(x, 1, 8, 8);
+  if (enabled) {
+    if (active) {
+      // Si actividad reciente: relleno sólido para resaltar acción en curso
+      u8g2.drawBox(x + 1, 2, 6, 6);
+      u8g2.setDrawColor(0);
+      u8g2.setCursor(x + 2, 8);
+      u8g2.print(label);
+      u8g2.setDrawColor(1);
+    } else {
+      u8g2.setCursor(x + 2, 8);
+      u8g2.print(label);
+    }
+
+    // Marca de error rápida en esquina si último intento falló
+    if (!ok) {
+      u8g2.drawPixel(x + 7, 1);
+      u8g2.drawPixel(x + 6, 2);
+    }
+  }
+}
+
 void drawHeader() {
   u8g2.setFont(u8g2_font_5x7_tf);
   u8g2.drawStr(0, 9, getClockTime().c_str());
+
+  // Indicadores críticos de estado:
+  // U = transmisión HTTP, S = guardado SD.
+  uint32_t now = millis();
+  bool txActive = (now - lastHttpActivityMs) < 1200;
+  bool sdActive = (now - lastSdActivityMs) < 1200;
+  drawActivityBadge(48, 'U', streaming, txActive, lastHttpOk);
+  drawActivityBadge(57, 'S', loggingEnabled, sdActive, lastSdOk);
 
   // Satellite icon (custom bitmap)
   if (haveFix && gpsStatus == "Fix") {

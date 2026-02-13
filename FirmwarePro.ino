@@ -50,7 +50,7 @@ const byte CMD = 0xB4;
 const byte TAIL = 0xAB;
 
 // Version
-String VERSION = "Pro V0.0.8";
+String VERSION = "Pro V0.0.9";
 
 // Pins
 #define UART_BAUD 115200
@@ -190,6 +190,11 @@ uint32_t sdSaveCounter = 0;
 // Separamos guardado SD y transmisión HTTP con timers independientes.
 uint32_t lastHttpSend = 0;
 uint32_t lastSdSave = 0;
+// Estado de actividad para UI (header U/S).
+uint32_t lastHttpActivityMs = 0;
+uint32_t lastSdActivityMs = 0;
+bool lastHttpOk = false;
+bool lastSdOk = false;
 uint8_t lastDayLogged = 0;
 bool wasStreamingBeforeBoot = false;
 
@@ -795,6 +800,8 @@ void loop() {
   if (loggingEnabled && (millis() - lastSdSave >= config.sdSavePeriod)) {
     lastSdSave = millis();
     bool sdSaved = saveCSVData();
+    lastSdActivityMs = millis();
+    lastSdOk = sdSaved;
     if (sdSaved) {
       displayState = DISP_SD_SAVED;
       displayStateStartTime = millis();
@@ -806,7 +813,9 @@ void loop() {
   // Transmisión HTTP (separada de guardado SD)
   if (streaming && (millis() - lastHttpSend >= config.httpSendPeriod)) {
     lastHttpSend = millis();
-    (void)sendCurrentMeasurement();
+    bool txOk = sendCurrentMeasurement();
+    lastHttpActivityMs = millis();
+    lastHttpOk = txOk;
   }
 
   // Serial Commands
