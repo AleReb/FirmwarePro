@@ -130,7 +130,7 @@ uint8_t menuIndex = 0; // Índice seleccionado
 static uint32_t uiLastActionMs = 0;
 const uint32_t UI_ACTION_GUARD_MS = 70;
 // Evita que un long click dispare también un click corto al soltar.
-static bool btn2LongConsumed = false;
+static uint32_t btn2LastLongMs = 0;
 
 static bool uiCanHandleAction() {
   uint32_t now = millis();
@@ -213,36 +213,22 @@ void drawBatteryDynamic(int xPos, int yPos, float v) {
   }
 }
 
-// Dibuja un interruptor compacto en header para TX/SD, con icono vectorial simple.
-// isTx=true dibuja flecha de subida; isTx=false dibuja icono de "disk/save".
-void drawActivitySwitch(int x, bool isTx, bool enabled, bool active, bool ok) {
-  const int y = 1;
-
-  // Icono simple (sin fuentes especiales para evitar glifos raros).
-  if (isTx) {
-    // Flecha de subida
-    u8g2.drawLine(x + 1, y + 6, x + 3, y + 2);
-    u8g2.drawLine(x + 5, y + 6, x + 3, y + 2);
-    u8g2.drawLine(x + 3, y + 2, x + 3, y + 7);
-  } else {
-    // "Disk" minimal
-    u8g2.drawFrame(x + 1, y + 1, 5, 6);
-    u8g2.drawBox(x + 2, y + 2, 3, 2);
+// Dibuja un indicador mínimo de estado para TX/SD sin ocupar mucho header.
+// enabled=feature ON, active=actividad reciente, ok=último resultado.
+void drawActivityDot(int x, bool enabled, bool active, bool ok) {
+  int y = 5;
+  if (!enabled) {
+    u8g2.drawCircle(x, y, 2);
+    return;
   }
 
-  // Switch compacto (9x6)
-  u8g2.drawRFrame(x + 8, y + 1, 9, 6, 2);
-  int knobX = enabled ? (x + 12) : (x + 9);
-  u8g2.drawBox(knobX, y + 2, 4, 4);
+  if (active)
+    u8g2.drawDisc(x, y, 2);
+  else
+    u8g2.drawCircle(x, y, 2);
 
-  // Actividad reciente: borde extra
-  if (active) {
-    u8g2.drawFrame(x + 7, y, 11, 8);
-  }
-
-  // Error último intento
-  if (enabled && !ok) {
-    u8g2.drawPixel(x + 18, y);
+  if (!ok) {
+    u8g2.drawPixel(x + 3, y - 3);
   }
 }
 
@@ -250,18 +236,21 @@ void drawHeader() {
   u8g2.setFont(u8g2_font_5x7_tf);
   u8g2.drawStr(0, 9, getClockTime().c_str());
 
-  // Indicadores críticos compactos (TX/SD) para evitar saturar header.
+  // Indicadores críticos mínimos (TX/SD) para no romper layout del header.
   uint32_t now = millis();
   bool txActive = (now - lastHttpActivityMs) < 1200;
   bool sdActive = (now - lastSdActivityMs) < 1200;
-  drawActivitySwitch(24, true, streaming, txActive, lastHttpOk);   // TX
-  drawActivitySwitch(42, false, loggingEnabled, sdActive, lastSdOk); // SD
+  u8g2.setFont(u8g2_font_4x6_tf);
+  u8g2.drawStr(24, 9, "T");
+  u8g2.drawStr(33, 9, "S");
+  drawActivityDot(30, streaming, txActive, lastHttpOk);
+  drawActivityDot(39, loggingEnabled, sdActive, lastSdOk);
 
   // Satellite icon + satélites
   if (haveFix && gpsStatus == "Fix") {
-    u8g2.drawXBMP(60, 1, 8, 8, satelit_bitmap);
+    u8g2.drawXBMP(52, 1, 8, 8, satelit_bitmap);
     u8g2.setFont(u8g2_font_5x7_tf);
-    u8g2.setCursor(68, 9);
+    u8g2.setCursor(60, 9);
     String sats = satellitesStr;
     if (sats.length() > 2)
       sats = sats.substring(0, 2);
@@ -275,20 +264,20 @@ void drawHeader() {
   bool networkError = (csq == 99);
   if (networkError) {
     u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
-    u8g2.drawGlyph(76, 9, 0x0118);
+    u8g2.drawGlyph(72, 9, 0x0118);
   } else {
     u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
-    u8g2.drawGlyph(76, 9, 0x00FD);
+    u8g2.drawGlyph(72, 9, 0x00FD);
     u8g2.setFont(u8g2_font_5x7_tf);
-    u8g2.setCursor(84, 9);
+    u8g2.setCursor(80, 9);
     String csqStr = String(csq);
     if (csqStr.length() > 2)
       csqStr = csqStr.substring(0, 2);
     u8g2.print(csqStr);
   }
 
-  // Batería al extremo derecho, lejos de switches/CSQ.
-  drawBatteryDynamic(108, 3, batV);
+  // Batería al extremo derecho.
+  drawBatteryDynamic(110, 3, batV);
 }
 
 // Dibuja indicadores de paginación del menú en el footer OLED.
@@ -459,10 +448,8 @@ void ui_btn1_click() {
 // Evento BTN2 corto: entra/selecciona opciones del menú.
 // Controla navegación entre niveles y acciones no críticas.
 void ui_btn2_click() {
-  if (btn2LongConsumed) {
-    btn2LongConsumed = false;
+  if (millis() - btn2LastLongMs < 400)
     return;
-  }
   if (!uiCanHandleAction())
     return;
   lastOledActivity = millis();
@@ -541,7 +528,7 @@ void ui_btn2_click() {
 // Evento BTN2 largo: start/stop del flujo principal en pantalla raíz.
 // En submenús actúa como retorno rápido al nivel anterior.
 void ui_btn2_hold() {
-  btn2LongConsumed = true;
+  btn2LastLongMs = millis();
   if (!uiCanHandleAction())
     return;
   lastOledActivity = millis();
