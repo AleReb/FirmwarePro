@@ -3,13 +3,13 @@
 extern SystemConfig config;
 String generateCSVFileName() {
   // Genera nombre basado en DEVICE_ID_STR y fecha actual
-  // Formato: HP02_DD_MM_YYYY.csv
+  // Formato: hiripro<ID>_DD_MM_YYYY.csv
   DateTime now = rtcOK ? rtc.now() : DateTime(2000, 1, 1, 0, 0, 0);
   char dateStr[16];
   snprintf(dateStr, sizeof(dateStr), "%02d_%02d_%04d", now.day(), now.month(),
            now.year());
 
-  String name = "/HP" + String(DEVICE_ID_STR) + "_" + String(dateStr) + ".csv";
+  String name = "/hiripro" + String(DEVICE_ID_STR) + "_" + String(dateStr) + ".csv";
   Serial.print("[SD] CSV filename: ");
   Serial.println(name);
   return name;

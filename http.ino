@@ -1,4 +1,5 @@
 // -------------------- HTTP helpers --------------------
+#include "config.h"
 // -------------------- External Variables --------------------
 extern TinyGsm modem;
 extern struct AtSession at;
@@ -9,6 +10,7 @@ extern const char gprsPass[];
 extern bool hasRed;
 extern float batV;
 extern uint16_t PM25;
+extern SystemConfig config;
 extern void updatePmLed(float pm25);
 extern void logError(const String &type, const String &ctx, const String &msg);
 extern bool atTick(bool &done, bool &ok);
@@ -152,10 +154,10 @@ bool httpGet_webhook(const String &fullUrl) {
   {
     bool actionDone = false, actionOk = false;
     uint32_t startTime = millis();
-    // Timeout HTTP: 15s permite ~5 lecturas de PMS/GPS (3s cada una) antes de
-    // abortar Ajustable para pruebas: reducir si red es muy rápida, aumentar si
-    // red es muy lenta
-    const uint32_t MAX_HTTP_WAIT_MS = 15000; // 15 segundos
+    // Timeout HTTP configurable (config.httpTimeout en segundos)
+    // fallback de seguridad: 15s si la config viene en 0.
+    const uint32_t MAX_HTTP_WAIT_MS =
+        (config.httpTimeout > 0 ? (uint32_t)config.httpTimeout * 1000UL : 15000UL);
 
     while (!actionDone) {
       esp_task_wdt_reset(); // Reset watchdog para evitar timeout durante HTTP

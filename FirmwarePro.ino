@@ -187,7 +187,9 @@ const char gprsPass[] = "";
 // Counters
 uint32_t sendCounter = 0;
 uint32_t sdSaveCounter = 0;
-uint32_t lastStream = 0;
+// Separamos guardado SD y transmisión HTTP con timers independientes.
+uint32_t lastHttpSend = 0;
+uint32_t lastSdSave = 0;
 uint8_t lastDayLogged = 0;
 bool wasStreamingBeforeBoot = false;
 
@@ -310,6 +312,7 @@ bool downloadXtraOnce();
 void downloadXtraIfDue();
 void parseNMEA(const String &line);
 void saveFailedTransmission(const String &url, const String &errorType);
+bool sendCurrentMeasurement();
 
 // UI Event Handlers
 extern void ui_btn1_click();
@@ -441,6 +444,73 @@ void updateNetworkInfo() {
   }
 }
 
+// -------------------- Telemetry Tx --------------------
+// NOTA DE INTEGRACION:
+// - "streaming" controla transmisión HTTP.
+// - "loggingEnabled" controla guardado en SD.
+// - Ambos están separados a propósito para evitar acoplar guardar/transmitir.
+bool sendCurrentMeasurement() {
+  String val;
+  String url;
+
+  String v1 = isnan(pmsTempC) ? "0" : safeFloatStr(pmsTempC);
+  String v2 = isnan(pmsHum) ? "0" : safeFloatStr(pmsHum);
+  String v3 = safeUIntStr(PM1);
+  String v4 = safeUIntStr(PM25);
+  String v5 = safeUIntStr(PM10);
+  String v6 = safeGpsStr(gpsLat);
+  String v7 = safeGpsStr(gpsLon);
+  String v8 = safeIntStr(csq);
+  String v9 = (gpsSpeedKmh.length() ? gpsSpeedKmh : "0");
+  String v10 = safeSatsStr(satellitesStr);
+  String v11 = safeFloatStr(rtcTempC);
+  String v12 = safeFloatStr(batV);
+  String v13 = v6; // Lat
+  String v14 = v7; // Lon
+  String v15 = String(DEVICE_ID_STR);
+  String v16 = safeUIntStr(sendCounter + 1);
+  String v17 = loggingEnabled ? "1" : "0";
+
+  if (SHT31OK == true) {
+    const String v18 = isnan(tempsht31) ? "0" : safeFloatStr(tempsht31);
+    const String v19 = isnan(humsht31) ? "0" : safeFloatStr(humsht31);
+    val = v1 + "," + v2 + "," + v3 + "," + v4 + "," + v5 + "," + v6 + "," +
+          v7 + "," + v8 + "," + v9 + "," + v10 + "," + v11 + "," + v12 + "," +
+          v13 + "," + v14 + "," + v15 + "," + v16 + "," + v17 + "," + v18 +
+          "," + v19;
+    url = String(API_BASE) + "?idsSensores=" + IDS_SENSORES +
+          "&idsVariables=" + IDS_VARIABLESSHT31 + "&valores=" + val;
+  } else if (String(DEVICE_ID_STR) == "06") {
+    const String v18 = safeUIntStr(SDS198PM100);
+    val = v1 + "," + v2 + "," + v3 + "," + v4 + "," + v5 + "," + v6 + "," +
+          v7 + "," + v8 + "," + v9 + "," + v10 + "," + v11 + "," + v12 + "," +
+          v13 + "," + v14 + "," + v15 + "," + v16 + "," + v17 + "," + v18;
+    url = String(API_BASE) + "?idsSensores=" + IDS_SENSORES +
+          "&idsVariables=" + IDS_VARIABLES06 + "&valores=" + val;
+  } else {
+    val = v1 + "," + v2 + "," + v3 + "," + v4 + "," + v5 + "," + v6 + "," +
+          v7 + "," + v8 + "," + v9 + "," + v10 + "," + v11 + "," + v12 + "," +
+          v13 + "," + v14 + "," + v15 + "," + v16 + "," + v17;
+    url = String(API_BASE) + "?idsSensores=" + IDS_SENSORES +
+          "&idsVariables=" + IDS_VARIABLES + "&valores=" + val;
+  }
+
+  Serial.println("[HTTP] GET " + url);
+  if (httpGet_webhook(url)) {
+    sendCounter++;
+    prefs.begin("system", false);
+    prefs.putUInt("sendCnt", sendCounter);
+    prefs.putUInt("sdCnt", sdSaveCounter);
+    prefs.end();
+    Serial.println("[HTTP] OK");
+    return true;
+  }
+
+  saveFailedTransmission(url, "HTTP_FAIL");
+  Serial.println("[HTTP] FAIL");
+  return false;
+}
+
 // -------------------- SETUP --------------------
 void setup() {
   Serial.begin(115200);
@@ -458,9 +528,14 @@ void setup() {
   sendCounter = prefs.getUInt("sendCnt", 0);
   sdSaveCounter = prefs.getUInt("sdCnt", 0);
   csvFileName = prefs.getString("csvFile", "");
-  wasStreamingBeforeBoot =
-      prefs.getBool("streaming", false); // Important for autostart
+  wasStreamingBeforeBoot = prefs.getBool("streaming", false);
+  // Etapa de integracion: iniciar SIEMPRE en false y sin autostart.
+  prefs.putBool("streaming", false);
   prefs.end();
+
+  // Etapa de integracion: separar control de transmisión y guardado.
+  streaming = false;
+  loggingEnabled = false;
 
   loadConfig();
   applyLEDConfig();
@@ -586,23 +661,20 @@ void setup() {
   esp_task_wdt_add(NULL);
 
   // SD Auto Mount
+  // Etapa de integracion:
+  // - Se verifica SD al inicio.
+  // - NO se inicia guardado ni transmisión automáticamente.
+  // - El archivo diario se define como hiripro<ID>_DD_MM_YYYY.csv.
   if (config.sdAutoMount || wasStreamingBeforeBoot) {
     spiSD.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_CS);
     SDOK = SD.begin(SD_CS, spiSD);
     if (SDOK) {
-      if (wasStreamingBeforeBoot) {
-        Serial.println("[BOOT] Autoresume Streaming");
-        streaming = true;
-        loggingEnabled = true;
-        if (!SD.exists(csvFileName.c_str())) {
-          csvFileName = generateCSVFileName();
-          writeCSVHeader();
-          prefs.begin("system", false);
-          prefs.putString("csvFile", csvFileName);
-          prefs.end();
-        }
-        writeErrorLogHeader();
-      }
+      csvFileName = generateCSVFileName();
+      prefs.begin("system", false);
+      prefs.putString("csvFile", csvFileName);
+      prefs.putBool("streaming", false);
+      prefs.end();
+      Serial.println("[BOOT] SD detected. Logging/streaming remain OFF by design");
     }
   }
 
@@ -682,79 +754,23 @@ void loop() {
     u8g2.setPowerSave(1);
   }
 
-  // Streaming Logic matches GPSDebug logic
-  if (streaming && (millis() - lastStream >= config.httpSendPeriod)) {
-    lastStream = millis();
-
+  // Guardado SD (separado de transmisión HTTP)
+  // Nota: por diseño de esta etapa, loggingEnabled inicia en false.
+  if (loggingEnabled && (millis() - lastSdSave >= config.sdSavePeriod)) {
+    lastSdSave = millis();
     bool sdSaved = saveCSVData();
-    if (sdSaved && loggingEnabled) {
+    if (sdSaved) {
       displayState = DISP_SD_SAVED;
       displayStateStartTime = millis();
-      renderDisplay(); // Force update
-      delay(200);      // Small blocking delay for feedback visibility
+      renderDisplay();
+      delay(200);
     }
+  }
 
-    // Reference values
-    String val;
-    String url;
-
-    String v1 = isnan(pmsTempC) ? "0" : safeFloatStr(pmsTempC);
-    String v2 = isnan(pmsHum) ? "0" : safeFloatStr(pmsHum);
-    String v3 = safeUIntStr(PM1);
-    String v4 = safeUIntStr(PM25);
-    String v5 = safeUIntStr(PM10);
-    String v6 = safeGpsStr(gpsLat);
-    String v7 = safeGpsStr(gpsLon);
-    String v8 = safeIntStr(csq);
-    String v9 = (gpsSpeedKmh.length() ? gpsSpeedKmh : "0");
-    String v10 = safeSatsStr(satellitesStr);
-    String v11 = safeFloatStr(rtcTempC);
-    String v12 = safeFloatStr(batV);
-    String v13 = v6; // Lat
-    String v14 = v7; // Lon
-    String v15 = String(DEVICE_ID_STR);
-    String v16 = safeUIntStr(sendCounter + 1);
-    String v17 = loggingEnabled ? "1" : "0";
-
-    // Build URL Logic
-    if (SHT31OK == true) {
-      const String v18 = isnan(tempsht31) ? "0" : safeFloatStr(tempsht31);
-      const String v19 = isnan(humsht31) ? "0" : safeFloatStr(humsht31);
-      val = v1 + "," + v2 + "," + v3 + "," + v4 + "," + v5 + "," + v6 + "," +
-            v7 + "," + v8 + "," + v9 + "," + v10 + "," + v11 + "," + v12 + "," +
-            v13 + "," + v14 + "," + v15 + "," + v16 + "," + v17 + "," + v18 +
-            "," + v19;
-      url = String(API_BASE) + "?idsSensores=" + IDS_SENSORES +
-            "&idsVariables=" + IDS_VARIABLESSHT31 + "&valores=" + val;
-    } else if (String(DEVICE_ID_STR) == "06") {
-      const String v18 = safeUIntStr(SDS198PM100);
-      val = v1 + "," + v2 + "," + v3 + "," + v4 + "," + v5 + "," + v6 + "," +
-            v7 + "," + v8 + "," + v9 + "," + v10 + "," + v11 + "," + v12 + "," +
-            v13 + "," + v14 + "," + v15 + "," + v16 + "," + v17 + "," + v18;
-      url = String(API_BASE) + "?idsSensores=" + IDS_SENSORES +
-            "&idsVariables=" + IDS_VARIABLES06 + "&valores=" + val;
-    } else {
-      val = v1 + "," + v2 + "," + v3 + "," + v4 + "," + v5 + "," + v6 + "," +
-            v7 + "," + v8 + "," + v9 + "," + v10 + "," + v11 + "," + v12 + "," +
-            v13 + "," + v14 + "," + v15 + "," + v16 + "," + v17;
-      url = String(API_BASE) + "?idsSensores=" + IDS_SENSORES +
-            "&idsVariables=" + IDS_VARIABLES + "&valores=" + val;
-    }
-
-    Serial.println("[HTTP] GET " + url);
-    // Transmit
-    if (httpGet_webhook(url)) {
-      sendCounter++;
-      // Persist
-      prefs.begin("system", false);
-      prefs.putUInt("sendCnt", sendCounter);
-      prefs.putUInt("sdCnt", sdSaveCounter);
-      prefs.end();
-      Serial.println("[HTTP] OK");
-    } else {
-      saveFailedTransmission(url, "HTTP_FAIL");
-      Serial.println("[HTTP] FAIL");
-    }
+  // Transmisión HTTP (separada de guardado SD)
+  if (streaming && (millis() - lastHttpSend >= config.httpSendPeriod)) {
+    lastHttpSend = millis();
+    (void)sendCurrentMeasurement();
   }
 
   // Serial Commands
