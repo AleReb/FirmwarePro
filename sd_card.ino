@@ -1,6 +1,8 @@
-// -------------------- SD helpers --------------------
+﻿// -------------------- SD helpers --------------------
 #include "config.h"
 extern SystemConfig config;
+// Genera nombre diario de CSV usando prefijo de dispositivo + fecha RTC.
+// Permite rotación por día y continuidad de trazabilidad en terreno.
 String generateCSVFileName() {
   // Genera nombre basado en DEVICE_ID_STR y fecha actual
   // Formato: hiripro<ID>_DD_MM_YYYY.csv
@@ -15,6 +17,8 @@ String generateCSVFileName() {
   return name;
 }
 
+// Escribe cabecera CSV solo si el archivo está vacío.
+// Estandariza columnas para procesamiento posterior en backend/IA.
 void writeCSVHeader() {
   if (!SDOK)
     return;
@@ -33,6 +37,8 @@ void writeCSVHeader() {
   }
 }
 
+// Crea archivo de errores con esquema fijo si aún no existe.
+// Facilita auditoría de fallos de red/módem en campo.
 void writeErrorLogHeader() {
   if (!SDOK)
     return;
@@ -51,6 +57,8 @@ void writeErrorLogHeader() {
 // en OLED)
 extern String lastSavedCSVLine;
 
+// Guarda una muestra completa de telemetría en SD y rota por cambio de día.
+// Actualiza contadores y expone última línea guardada para UI/debug.
 bool saveCSVData() {
   if (!SDOK || !loggingEnabled)
     return false;
@@ -106,6 +114,8 @@ bool saveCSVData() {
 // análisis posterior NO se reintenta la transmisión automáticamente para evitar
 // desfase de datos Variables globales ajustables para pruebas:
 // - failedTxPath: Ruta del archivo CSV (definido en .ino principal)
+// Registra en SD las transmisiones HTTP fallidas con timestamp y URL.
+// No reintenta en línea para evitar desfases y preservar ciclo de muestreo.
 void saveFailedTransmission(const String &url, const String &errorType) {
   if (!SDOK)
     return; // SD no disponible
@@ -138,3 +148,4 @@ void saveFailedTransmission(const String &url, const String &errorType) {
     Serial.println("[FAILED_TX][ERR] Could not open " + failedTxPath);
   }
 }
+

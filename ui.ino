@@ -1,4 +1,4 @@
-// -------------------- UI & Display Logic --------------------
+﻿// -------------------- UI & Display Logic --------------------
 // Integrates functionality from HIRI_PR0_MENU with GPSDebug backend data
 #include <OneButton.h>
 #include <U8g2lib.h>
@@ -120,6 +120,8 @@ uint8_t menuIndex = 0; // Índice seleccionado
 // will attach.
 
 // --- UI Helper Functions ---
+// Devuelve hora formateada HH:MM:SS desde RTC para cabecera OLED.
+// Si RTC falla, entrega placeholder seguro.
 String getClockTime() {
   if (!rtcOK)
     return "??:??:??";
@@ -130,6 +132,8 @@ String getClockTime() {
   return String(buf);
 }
 
+// Convierte voltaje de batería a porcentaje aproximado de carga.
+// Usa umbrales operativos del sistema para evitar valores irreales.
 int calcBatteryPercent(float v) {
   if (v >= 4.1)
     return 100; // 4.2V = 100%
@@ -138,6 +142,8 @@ int calcBatteryPercent(float v) {
   return (int)((v - 3.4) / 0.8 * 100); // Rango: 3.4V-4.2V = 0.8V
 }
 
+// Dibuja icono de batería dinámico en OLED según voltaje estimado.
+// Incluye fallback visual para estado crítico/sin lectura válida.
 void drawBatteryDynamic(int xPos, int yPos, float v) {
   // Validar voltaje para evitar valores inválidos
   if (isnan(v) || v < 0 || v > 5.0)
@@ -181,6 +187,8 @@ void drawBatteryDynamic(int xPos, int yPos, float v) {
   }
 }
 
+// Renderiza cabecera de pantalla (hora, GNSS, señal y batería).
+// Refleja estado de fix y conectividad en tiempo real.
 void drawHeader() {
   u8g2.setFont(u8g2_font_5x7_tf);
   u8g2.drawStr(0, 9, getClockTime().c_str());
@@ -212,6 +220,8 @@ void drawHeader() {
   drawBatteryDynamic(115, 3, batV);
 }
 
+// Dibuja indicadores de paginación del menú en el footer OLED.
+// Marca visualmente el item seleccionado.
 void drawFooterCircles(uint8_t cnt, uint8_t sel) {
   const uint8_t dia = 4, sp = 8;
   uint8_t totalW = cnt * dia + (cnt - 1) * sp;
@@ -225,6 +235,8 @@ void drawFooterCircles(uint8_t cnt, uint8_t sel) {
   }
 }
 
+// Presenta valor grande de sensor según pantalla activa (PM/Temp/Hum).
+// Centra texto y etiqueta para lectura rápida en terreno.
 void drawSensorValue(uint8_t idx) {
   char buf[24];
   String baseF = "";
@@ -254,6 +266,8 @@ void drawSensorValue(uint8_t idx) {
   u8g2.drawStr((128 - wLbl) / 2, 53, baseF.c_str());
 }
 
+// Dibuja item de menú con icono y texto centrados.
+// Reutiliza estructuras de menú para mantener UI modular.
 void drawMenuItemWithIcon(uint8_t depth, uint8_t idx) {
   const char *txt = menus[depth].items[idx];
   const uint16_t *ic = menus[depth].icons;
@@ -287,6 +301,8 @@ void drawMenuItemWithIcon(uint8_t depth, uint8_t idx) {
   u8g2.drawStr(xText, yText, txt);
 }
 
+// Render principal de OLED con estado normal y estados transitorios.
+// Integra cabecera, cuerpo de menú y footer en cada refresco.
 void renderDisplay() {
   u8g2.clearBuffer();
   drawHeader();
@@ -332,6 +348,8 @@ void renderDisplay() {
 
 // --- Action Handlers ---
 
+// Muestra aviso visual y reinicia el ESP32 de forma controlada.
+// Se ejecuta desde menú de configuración.
 void handleRestart() {
   u8g2.clearBuffer();
   u8g2.drawStr(30, 30, "REINICIANDO...");
@@ -340,6 +358,8 @@ void handleRestart() {
   ESP.restart();
 }
 
+// Alterna modo WiFi AP para gestión de archivos en SD.
+// Inicia o detiene servidor web según estado actual.
 void handleConfigWifi() {
   // Toggle WiFi AP
   if (!wifiModeActive) {
@@ -352,6 +372,8 @@ void handleConfigWifi() {
 // --- Interaction Logic ---
 
 // BTN1 Click: Next Option
+// Evento BTN1: avanza selección en el menú activo.
+// Reactiva OLED si estaba en ahorro de energía.
 void ui_btn1_click() {
   menuIndex = (menuIndex + 1) % menus[menuDepth].count;
   lastOledActivity = millis();
@@ -360,6 +382,8 @@ void ui_btn1_click() {
 }
 
 // BTN2 Click: Select / Enter
+// Evento BTN2 corto: entra/selecciona opciones del menú.
+// Controla navegación entre niveles y acciones no críticas.
 void ui_btn2_click() {
   lastOledActivity = millis();
   if (config.oledAutoOff)
@@ -405,6 +429,8 @@ void ui_btn2_click() {
 }
 
 // BTN2 Hold: Action / Back
+// Evento BTN2 largo: start/stop del flujo principal en pantalla raíz.
+// En submenús actúa como retorno rápido al nivel anterior.
 void ui_btn2_hold() {
   lastOledActivity = millis();
   if (config.oledAutoOff)
@@ -464,7 +490,10 @@ void ui_btn2_hold() {
   }
 }
 
+// Placeholder de máquina de estados UI para futuras extensiones.
+// Actualmente el estado se actualiza en handlers y renderDisplay().
 void updateDisplayStateMachine() {
   // Nothing to update state-wise here, handled in renderDisplay and event
   // handlers
 }
+

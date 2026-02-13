@@ -1,4 +1,4 @@
-// -------------------- HTTP helpers --------------------
+﻿// -------------------- HTTP helpers --------------------
 #include "config.h"
 // -------------------- External Variables --------------------
 extern TinyGsm modem;
@@ -26,6 +26,8 @@ const uint8_t MAX_PDP_FAILS_BEFORE_BACKOFF = 5;
 const uint32_t PDP_BACKOFF_MS = 15000;
 const uint32_t PDP_RECONNECT_TIMEOUT_MS = 30000;
 
+// Asegura sesión de datos PDP/NETOPEN activa antes de enviar HTTP.
+// Incluye control de backoff para evitar bucles de reconexión agresivos.
 bool ensurePdpAndNet() {
   String dummy;
   (void)sendAtSync("+CGDCONT=1,\"IP\",\"gigsky-02\"", dummy, 2000);
@@ -96,6 +98,8 @@ bool ensurePdpAndNet() {
 }
 
 // Helper: parsear +HTTPACTION: 0,200,123
+// Parsea la URC +HTTPACTION para extraer código HTTP y tamaño de respuesta.
+// Centraliza parsing defensivo del módem SIM7600.
 void parseHttpActionResponse(const String &resp, int &code, int &dataLen) {
   code = -1;
   dataLen = -1;
@@ -109,6 +113,8 @@ void parseHttpActionResponse(const String &resp, int &code, int &dataLen) {
 }
 
 // -------------------- HTTP GET (blocking, stable) --------------------
+// Ejecuta ciclo HTTP completo (INIT/PARA/ACTION/READ/TERM) con timeout y watchdog.
+// Devuelve true solo para respuestas 2xx y registra errores detallados.
 bool httpGet_webhook(const String &fullUrl) {
   Serial.printf("[HTTP][SYNC] URL length = %d\n", fullUrl.length());
   if (fullUrl.length() > 512) {
@@ -216,3 +222,4 @@ bool httpGet_webhook(const String &fullUrl) {
 
   return (httpCode >= 200 && httpCode < 300);
 }
+

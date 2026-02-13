@@ -1,4 +1,4 @@
-// -------------------- External Variables --------------------
+﻿// -------------------- External Variables --------------------
 // -------------------- External Variables --------------------
 #include "config.h"
 #include <TinyGsmClient.h>
@@ -52,6 +52,8 @@ void splitSentence(const String &sentence, char delimiter, String fields[],
     fields[fieldIndex++] = sentence.substring(start);
 }
 
+// Convierte coordenadas NMEA (ddmm.mmmm / dddmm.mmmm) a grados decimales.
+// Aplica signo negativo para hemisferios Sur/Oeste.
 float convertToDecimal(String coord, String dir) {
   int degDigits = (dir == "N" || dir == "S") ? 2 : 3;
   if ((int)coord.length() < degDigits)
@@ -65,6 +67,8 @@ float convertToDecimal(String coord, String dir) {
 }
 
 // -------------------- GNSS bring-up + watchdog --------------------
+// Reinicia estado GNSS/TTFF al arrancar o reiniciar el subsistema satelital.
+// Evita arrastrar flags de fix anteriores.
 static inline void resetGnssFlagsAfterStart() {
   gnssStartMs = millis();
   // Reset de estado TTFF
@@ -75,6 +79,8 @@ static inline void resetGnssFlagsAfterStart() {
   lastFixMs = 0;
 }
 
+// Parsea sentencia GSA para extraer tipo de fix, satélites usados y DOPs.
+// Alimenta métricas de calidad GNSS para diagnóstico.
 void parseGSA(const String &s) {
   // $xxGSA,mode,fixType,sv1,...,sv12,PDOP,HDOP,VDOP*CS
   const int N = 20;
@@ -93,6 +99,8 @@ void parseGSA(const String &s) {
   gsaVdop = f[17].length() ? f[17].toFloat() : NAN;
 }
 
+// Parsea GSV y calcula satélites en vista + estadísticas de SNR.
+// Se usa para evaluar calidad de señal satelital en campo.
 void parseGSV(const String &s) {
   // $xxGSV,total,msgnum,sats, (prn,elev,az,snr) x up to 4
   const int N = 20;
@@ -127,6 +135,8 @@ void parseGSV(const String &s) {
   }
 }
 
+// Parsea GGA (fix, satélites, HDOP, altitud, lat/lon).
+// Actualiza haveFix y timestamps de última solución válida.
 void parseGGA(const String &s) {
   const int N = 15;
   String f[N];
@@ -156,6 +166,8 @@ void parseGGA(const String &s) {
   gpsStatus = (fixQ.toInt() >= 1) ? "Fix" : "NoFix";
 }
 
+// Parsea RMC para estado de navegación, fecha/hora y posición.
+// Si no hay validez ('A'), fuerza estado NoFix.
 void parseRMC(const String &s) {
   const int N = 12;
   String f[N];
@@ -180,6 +192,8 @@ void parseRMC(const String &s) {
               date.substring(4, 6);
 }
 
+// Parsea VTG para extraer velocidad en km/h.
+// Mantiene velocidad GNSS desacoplada de GGA/RMC.
 void parseVTG(const String &s) {
   const int N = 10;
   String f[N];
@@ -189,6 +203,8 @@ void parseVTG(const String &s) {
 }
 
 // Talker-agnostic (GP/GN/GA/GL/BD/GB/QZ...): detecta tipo por [3..5]
+// Router de sentencias NMEA por tipo (GGA/RMC/VTG/GSA/GSV).
+// Actualiza heartbeat NMEA y contadores de tasa.
 void parseNMEA(const String &line) {
   lastNmeaMs = millis();
   nmeaCount1s++;
@@ -212,6 +228,8 @@ void parseNMEA(const String &line) {
 
 // -------------------- GNSS bring-up functions --------------------
 // Intentar configurar el modo GNSS según config, con fallback automático
+// Configura constelación GNSS según preferencia y aplica fallback automático.
+// Reduce fallos de compatibilidad entre firmwares de módem.
 bool setGnssAllWithFallback() {
   // Intentar primero el modo configurado por el usuario
   char cmd[20];
@@ -267,6 +285,8 @@ bool setGnssAllWithFallback() {
   return false;
 }
 
+// Secuencia de encendido GNSS/NMEA y configuración base del receptor.
+// Deja el módulo listo para parseo continuo a 1 Hz.
 void gnssBringUp() {
   Serial.println("[GNSS] Bring-up...");
   atRun("+CGPS=0", "OK", "ERROR", 5000);
@@ -283,18 +303,24 @@ void gnssBringUp() {
   resetGnssFlagsAfterStart();
 }
 
+// Reinicio HOT del motor GNSS conservando más contexto satelital.
+// Se usa como recuperación rápida ante pérdida parcial de fix.
 void gnssHotRestart() {
   Serial.println("[GNSS] HOT restart");
   atRun("+CGPSRST=0", "OK", "ERROR", 3000);
   resetGnssFlagsAfterStart();
 }
 
+// Reinicio WARM del GNSS para recuperación más profunda.
+// Se activa cuando no se recupera fix tras período extendido.
 void gnssWarmRestart() {
   Serial.println("[GNSS] WARM restart");
   atRun("+CGPSRST=1", "OK", "ERROR", 3000);
   resetGnssFlagsAfterStart();
 }
 
+// Watchdog de GNSS: decide HOT/WARM restart según tiempo sin fix.
+// Mantiene resiliencia sin bloquear el loop principal.
 void gnssWatchdog() {
   if (haveFix)
     return;
@@ -308,6 +334,8 @@ void gnssWatchdog() {
 
 // -------------------- Async GNSS diag & debug (non-blocking)
 // --------------------
+// Calcula e imprime diagnósticos periódicos de salud GNSS/NMEA.
+// Incluye tasa de tramas, edad de fix y métricas GSA/GSV.
 void gnssDiagTick() {
   const uint32_t now = millis();
 
@@ -366,6 +394,8 @@ void gnssDiagTick() {
   }
 }
 
+// Ejecuta consultas AT de debug GNSS en máquina de estados no bloqueante.
+// Permite inspección continua sin romper timing del firmware.
 void gnssDebugPollAsync() {
   const uint32_t PERIOD_MS = 5000;
   if (millis() < gnssDbgNextAt)
@@ -412,6 +442,8 @@ void gnssDebugPollAsync() {
 }
 
 // -------------------- XTRA / AGNSS --------------------
+// Detecta soporte XTRA (A-GNSS) y lo habilita en el módem.
+// Mejora tiempo de primer fix cuando la red lo permite.
 bool detectAndEnableXtra() {
   String r;
   if (!sendAtSync("+CGPSXE=?", r, 2000)) {
@@ -426,6 +458,8 @@ bool detectAndEnableXtra() {
   return true;
 }
 
+// Descarga paquete XTRA una vez, asegurando PDP activo.
+// Guarda estado para trazabilidad y decisiones futuras.
 bool downloadXtraOnce() {
   if (!modem.isGprsConnected()) {
     if (!modem.gprsConnect(apn, gprsUser, gprsPass)) {
@@ -441,6 +475,8 @@ bool downloadXtraOnce() {
   return ok;
 }
 
+// Refresca XTRA de forma periódica según ventana configurada.
+// Evita descargas innecesarias y conserva recursos de red.
 void downloadXtraIfDue() {
   if (!xtraSupported)
     return;
@@ -449,3 +485,4 @@ void downloadXtraIfDue() {
   if (downloadXtraOnce())
     lastXtraDownload = millis();
 }
+

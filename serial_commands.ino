@@ -1,4 +1,4 @@
-// -------------------- Serial Commands --------------------
+﻿// -------------------- Serial Commands --------------------
 // Sistema de comandos seriales para debug y mantenimiento
 // Uso: Enviar comando por serial monitor (115200 baud, newline)
 // Ejemplo: "help" → muestra lista de comandos
@@ -45,7 +45,7 @@ bool syncRtcFromModem();      // Assuming implemented or needed
 void resetModemSyncCounter(); // Assuming implemented or needed
 bool getModemEpoch(uint32_t &epoch);
 
-void processSerialCommand() {
+// Procesa comandos por puerto serie para operación, diagnóstico y mantenimiento.`r`n// Permite inspección y control en campo sin recompilar firmware.`r`nvoid processSerialCommand() {
   if (!Serial.available())
     return;
 
@@ -531,3 +531,4 @@ void processSerialCommand() {
 
   Serial.println();
 }
+
