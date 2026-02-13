@@ -68,23 +68,23 @@ static const unsigned char PROGMEM satelit_bitmap[8] = {0x06, 0x6E, 0x74, 0x38,
                                                         0x58, 0xE5, 0xC1, 0x07};
 
 // Menú Principal
-const char *topItems[] = {
-    "PM2.5", "Temperatura", "Humedad", "Informacion",
-    "OPCIONES"}; // Replaced "Empezar Muestreo" with Info/Options
+const char *topItems[] = {"PM2.5", "Temperatura", "Humedad", "Empezar Muestreo",
+                          "OPCIONES"};
 const uint16_t topIcons[] = {
-    0,      // null (PM2.5 value shown)
-    0,      // null (Temp value shown)
-    0,      // null (Hum value shown)
-    0x0185, // ℹ️ Informacion
-    0x0192  // ⚙️ Opciones
+    0,      // null
+    0,      // null
+    0,      // null
+    0x01A5, // muestreo
+    0x0192  // opciones
 };
 
 // Submenu: Opciones
-const char *SubItems[] = {"Mensajes", "Configuracion", "Volver"};
+const char *SubItems[] = {"Mensajes", "Configuracion", "Informacion", "Volver"};
 const uint16_t SubIcons[] = {
-    0x00EC, // ✉️ Mensajes
-    0x015b, // ⚙️ Configuración
-    0x01A9  // ←  Volver
+    0x00EC, // mensajes
+    0x015b, // configuración
+    0x0185, // información
+    0x01A9  // volver
 };
 
 // Menú de “Mensajes”
@@ -97,19 +97,21 @@ const uint16_t msgIcons[] = {
 };
 
 // Menú de “Configuración”
-const char *cfgItems[] = {"REDES", "WIFI AP", "Reiniciar", "Volver"};
+const char *cfgItems[] = {"REDES", "GUARDADO", "RTC", "Reiniciar", "Volver"};
 const uint16_t cfgIcons[] = {
     0x01CC, // redes
-    0x01F0, // WiFi
-    0x00D5, // ↻ Reiniciar
-    0x01A9  // ← Volver
+    0x0176, // guardado
+    0x01CB, // rtc/función
+    0x00D5, // reiniciar
+    0x01A9  // volver
 };
 
 // Menú de “Información”
-const char *infoItems[] = {"Version", "Estado", "Volver"};
+const char *infoItems[] = {"Version", "Bateria", "Memoria", "Volver"};
 const uint16_t infoIcons[] = {
-    0x0185, // info
-    0x01CC, // estado/red
+    0x0085, // version
+    0x00D1, // batería
+    0x0093, // memoria
     0x01A9  // volver
 };
 
@@ -462,11 +464,8 @@ void ui_btn2_click() {
     u8g2.setPowerSave(0);
 
   if (menuDepth == 0) {
-    // Main Menu
-    if (menuIndex == 3) { // Informacion
-      menuDepth = 4;
-      menuIndex = 0;
-    } else if (menuIndex == 4) { // Opciones
+    // Main Menu: click corto navega/entra, pero NO activa muestreo.
+    if (menuIndex == 4) { // Opciones
       menuDepth = 1;
       menuIndex = 0;
     }
@@ -478,7 +477,10 @@ void ui_btn2_click() {
     } else if (menuIndex == 1) { // Configuracion
       menuDepth = 3;
       menuIndex = 0;
-    } else if (menuIndex == 2) { // Volver
+    } else if (menuIndex == 2) { // Informacion
+      menuDepth = 4;
+      menuIndex = 0;
+    } else if (menuIndex == 3) { // Volver
       menuDepth = 0;
       menuIndex = 0;
     }
@@ -494,11 +496,15 @@ void ui_btn2_click() {
     }
   } else if (menuDepth == 3) {
     // Configuration Menu
-    if (menuIndex == 1) { // WIFI AP
-      handleConfigWifi();
-    } else if (menuIndex == 2) { // Reiniciar
+    if (menuIndex == 0) { // REDES (placeholder)
+      Serial.println("[CFG] REDES");
+    } else if (menuIndex == 1) { // GUARDADO (placeholder)
+      Serial.println("[CFG] GUARDADO");
+    } else if (menuIndex == 2) { // RTC (placeholder)
+      Serial.println("[CFG] RTC");
+    } else if (menuIndex == 3) { // Reiniciar
       handleRestart();
-    } else if (menuIndex == 3) { // Volver
+    } else if (menuIndex == 4) { // Volver
       menuDepth = 1;
       menuIndex = 0;
     }
@@ -507,10 +513,11 @@ void ui_btn2_click() {
     if (menuIndex == 0) {
       Serial.println(String("[INFO] Version: ") + VERSION);
     } else if (menuIndex == 1) {
-      Serial.println(String("[INFO] streaming=") + (streaming ? "ON" : "OFF") +
-                     String(" logging=") + (loggingEnabled ? "ON" : "OFF"));
-    } else {
-      menuDepth = 0;
+      Serial.println(String("[INFO] Bateria V=") + String(batV, 2));
+    } else if (menuIndex == 2) {
+      Serial.println(String("[INFO] Mem free=") + String(ESP.getFreeHeap()));
+    } else if (menuIndex == 3) {
+      menuDepth = 1;
       menuIndex = 0;
     }
   } else {
@@ -535,28 +542,26 @@ void ui_btn2_hold() {
     u8g2.setPowerSave(0);
 
   if (menuDepth == 0) {
-    // CRITICAL: Main Screen Hold -> Toggle Sampling
+    // HOLD en raíz solo controla muestreo cuando está seleccionado "Empezar Muestreo".
+    if (menuIndex != 3) {
+      return;
+    }
+
     if (streaming) {
-      // STOP
       streaming = false;
       loggingEnabled = false;
       Serial.println("[UI] User Request: STOP Streaming/Logging");
       prefs.begin("system", false);
       prefs.putBool("streaming", false);
       prefs.end();
-      // Visual Feedback
       u8g2.clearBuffer();
       u8g2.setFont(u8g2_font_open_iconic_all_4x_t);
-      u8g2.drawGlyph(48, 48, 0x00F9); // Stop icon (square)
+      u8g2.drawGlyph(48, 48, 0x00F9);
       u8g2.sendBuffer();
     } else {
-      // START (solo transmisión)
-      // NOTA: por diseño de integración, NO habilitar logging al iniciar.
-      // loggingEnabled debe controlarse de forma explícita en una etapa posterior.
       streaming = true;
       loggingEnabled = false;
 
-      // Verificar SD y preparar nombre diario, pero sin escribir aún.
       if (!SDOK) {
         spiSD.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_CS);
         SDOK = SD.begin(SD_CS, spiSD);
@@ -573,16 +578,16 @@ void ui_btn2_hold() {
       prefs.putBool("streaming", true);
       prefs.end();
 
-      // Visual Feedback
       u8g2.clearBuffer();
       u8g2.setFont(u8g2_font_open_iconic_all_4x_t);
-      u8g2.drawGlyph(48, 48, 0x00E9); // Play icon
+      u8g2.drawGlyph(48, 48, 0x00E9);
       u8g2.sendBuffer();
     }
   } else {
-    // En submenús, HOLD no debe disparar acciones de streaming.
-    // Se ignora para evitar cambios accidentales durante navegación.
-    return;
+    // HOLD en submenú = salir (back), como en HIRI menu base.
+    menuDepth--;
+    menuIndex = 0;
+    renderDisplay();
   }
 }
 
