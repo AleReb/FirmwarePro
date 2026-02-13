@@ -126,7 +126,7 @@ uint8_t menuIndex = 0; // Índice seleccionado
 
 // Guard de acciones UI para evitar dobles disparos por rebote/eventos solapados.
 static uint32_t uiLastActionMs = 0;
-const uint32_t UI_ACTION_GUARD_MS = 120;
+const uint32_t UI_ACTION_GUARD_MS = 70;
 
 static bool uiCanHandleAction() {
   uint32_t now = millis();
@@ -240,43 +240,46 @@ void drawHeader() {
   u8g2.setFont(u8g2_font_5x7_tf);
   u8g2.drawStr(0, 9, getClockTime().c_str());
 
-  // Indicadores críticos de estado con iconos + interruptor
-  // Ajustados para no superponerse con satélite/señal/batería.
+  // Indicadores críticos en formato interruptor (TX/SD)
+  // Reubicados para no romper bloque de señal y batería.
   uint32_t now = millis();
   bool txActive = (now - lastHttpActivityMs) < 1200;
   bool sdActive = (now - lastSdActivityMs) < 1200;
-  drawActivitySwitch(26, 0x01F4, streaming, txActive, lastHttpOk);    // uplink
-  drawActivitySwitch(45, 0x0176, loggingEnabled, sdActive, lastSdOk); // save
+  drawActivitySwitch(22, 0x01F4, streaming, txActive, lastHttpOk);
+  drawActivitySwitch(40, 0x0176, loggingEnabled, sdActive, lastSdOk);
 
-  // Satellite icon (custom bitmap)
+  // Satellite icon + satélites
   if (haveFix && gpsStatus == "Fix") {
-    u8g2.drawXBMP(69, 1, 8, 8, satelit_bitmap);
+    u8g2.drawXBMP(60, 1, 8, 8, satelit_bitmap);
     u8g2.setFont(u8g2_font_5x7_tf);
-    u8g2.setCursor(78, 9);
-    // Limitar ancho para evitar overlap visual
+    u8g2.setCursor(69, 9);
     String sats = satellitesStr;
     if (sats.length() > 2)
       sats = sats.substring(0, 2);
     u8g2.print(sats);
   } else {
     u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
-    u8g2.drawGlyph(69, 9, 0x0118);
+    u8g2.drawGlyph(60, 9, 0x0118);
   }
 
-  // WiFi/Signal icon
+  // WiFi/Signal
   bool networkError = (csq == 99);
   if (networkError) {
     u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
-    u8g2.drawGlyph(91, 9, 0x0118);
+    u8g2.drawGlyph(78, 9, 0x0118);
   } else {
     u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
-    u8g2.drawGlyph(91, 9, 0x00FD);
+    u8g2.drawGlyph(78, 9, 0x00FD);
     u8g2.setFont(u8g2_font_5x7_tf);
-    u8g2.setCursor(99, 9);
-    u8g2.print(csq);
+    u8g2.setCursor(86, 9);
+    String csqStr = String(csq);
+    if (csqStr.length() > 2)
+      csqStr = csqStr.substring(0, 2);
+    u8g2.print(csqStr);
   }
 
-  drawBatteryDynamic(116, 3, batV);
+  // Batería al extremo derecho, lejos de switches/CSQ.
+  drawBatteryDynamic(106, 3, batV);
 }
 
 // Dibuja indicadores de paginación del menú en el footer OLED.
