@@ -2,6 +2,7 @@
 // Integrates functionality from HIRI_PR0_MENU with GPSDebug backend data
 #include <OneButton.h>
 #include <U8g2lib.h>
+#include <string.h>
 
 // -------------------- External Variables (from FirmwarePro.ino)
 // --------------------
@@ -46,6 +47,7 @@ extern volatile enum DisplayState displayState;
 extern volatile uint32_t displayStateStartTime;
 extern uint32_t lastOledActivity;
 extern String csvFileName;
+extern String VERSION;
 extern void writeCSVHeader();
 extern void writeErrorLogHeader();
 extern String generateCSVFileName();
@@ -103,16 +105,20 @@ const uint16_t cfgIcons[] = {
     0x01A9  // ← Volver
 };
 
-// Menú de “Información” (Dynamic, accessed via main menu or specific item)
-// Note: We might display this dynamically without a sub-menu struct if it's
-// just values.
+// Menú de “Información”
+const char *infoItems[] = {"Version", "Estado", "Volver"};
+const uint16_t infoIcons[] = {
+    0x0185, // info
+    0x01CC, // estado/red
+    0x01A9  // volver
+};
 
 Menu menus[] = {
-    {topItems, topIcons, sizeof(topItems) / sizeof(topItems[0])}, // 0: Main
-    {SubItems, SubIcons, sizeof(SubItems) / sizeof(SubItems[0])}, // 1: Opciones
-    {msgItems, msgIcons, sizeof(msgItems) / sizeof(msgItems[0])}, // 2: Mensajes
-    {cfgItems, cfgIcons,
-     sizeof(cfgItems) / sizeof(cfgItems[0])} // 3: Configuración
+    {topItems, topIcons, sizeof(topItems) / sizeof(topItems[0])},   // 0: Main
+    {SubItems, SubIcons, sizeof(SubItems) / sizeof(SubItems[0])},   // 1: Opciones
+    {msgItems, msgIcons, sizeof(msgItems) / sizeof(msgItems[0])},   // 2: Mensajes
+    {cfgItems, cfgIcons, sizeof(cfgItems) / sizeof(cfgItems[0])},   // 3: Configuración
+    {infoItems, infoIcons, sizeof(infoItems) / sizeof(infoItems[0])} // 4: Info
 };
 
 uint8_t menuDepth = 0; // 0 = principal, 1+ = submenus
@@ -120,7 +126,7 @@ uint8_t menuIndex = 0; // Índice seleccionado
 
 // Guard de acciones UI para evitar dobles disparos por rebote/eventos solapados.
 static uint32_t uiLastActionMs = 0;
-const uint32_t UI_ACTION_GUARD_MS = 180;
+const uint32_t UI_ACTION_GUARD_MS = 120;
 
 static bool uiCanHandleAction() {
   uint32_t now = millis();
@@ -235,38 +241,42 @@ void drawHeader() {
   u8g2.drawStr(0, 9, getClockTime().c_str());
 
   // Indicadores críticos de estado con iconos + interruptor
-  // Uplink (0x01F4 aprox up/upload) y SD/guardar (0x0176)
+  // Ajustados para no superponerse con satélite/señal/batería.
   uint32_t now = millis();
   bool txActive = (now - lastHttpActivityMs) < 1200;
   bool sdActive = (now - lastSdActivityMs) < 1200;
-  drawActivitySwitch(38, 0x01F4, streaming, txActive, lastHttpOk);
-  drawActivitySwitch(62, 0x0176, loggingEnabled, sdActive, lastSdOk);
+  drawActivitySwitch(26, 0x01F4, streaming, txActive, lastHttpOk);    // uplink
+  drawActivitySwitch(45, 0x0176, loggingEnabled, sdActive, lastSdOk); // save
 
   // Satellite icon (custom bitmap)
   if (haveFix && gpsStatus == "Fix") {
-    u8g2.drawXBMP(65, 1, 8, 8, satelit_bitmap); // Bitmap del satélite
+    u8g2.drawXBMP(69, 1, 8, 8, satelit_bitmap);
     u8g2.setFont(u8g2_font_5x7_tf);
-    u8g2.setCursor(73, 9);     // esto rompe con la nueva grafica del footer
-    u8g2.print(satellitesStr); //
+    u8g2.setCursor(78, 9);
+    // Limitar ancho para evitar overlap visual
+    String sats = satellitesStr;
+    if (sats.length() > 2)
+      sats = sats.substring(0, 2);
+    u8g2.print(sats);
   } else {
     u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
-    u8g2.drawGlyph(65, 9, 0x0118); // Error icon
+    u8g2.drawGlyph(69, 9, 0x0118);
   }
 
   // WiFi/Signal icon
   bool networkError = (csq == 99);
   if (networkError) {
     u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
-    u8g2.drawGlyph(90, 9, 0x0118); // Error icon at signal location
+    u8g2.drawGlyph(91, 9, 0x0118);
   } else {
     u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
-    u8g2.drawGlyph(90, 9, 0x00FD); // wifi
+    u8g2.drawGlyph(91, 9, 0x00FD);
     u8g2.setFont(u8g2_font_5x7_tf);
-    u8g2.setCursor(98, 9);
+    u8g2.setCursor(99, 9);
     u8g2.print(csq);
   }
 
-  drawBatteryDynamic(115, 3, batV);
+  drawBatteryDynamic(116, 3, batV);
 }
 
 // Dibuja indicadores de paginación del menú en el footer OLED.
@@ -445,8 +455,9 @@ void ui_btn2_click() {
 
   if (menuDepth == 0) {
     // Main Menu
-    if (menuIndex == 3) { // Information (Just show, maybe detailed view?)
-                          // For now, do nothing or toggle detail
+    if (menuIndex == 3) { // Informacion
+      menuDepth = 4;
+      menuIndex = 0;
     } else if (menuIndex == 4) { // Opciones
       menuDepth = 1;
       menuIndex = 0;
@@ -463,6 +474,16 @@ void ui_btn2_click() {
       menuDepth = 0;
       menuIndex = 0;
     }
+  } else if (menuDepth == 2) {
+    // Mensajes: acciones placeholder con retorno rápido para evitar sensación de bloqueo.
+    if (menuIndex < 3) {
+      Serial.println(String("[UI] Mensaje seleccionado: ") + menus[2].items[menuIndex]);
+      menuDepth = 1;
+      menuIndex = 0;
+    } else {
+      menuDepth = 1;
+      menuIndex = 0;
+    }
   } else if (menuDepth == 3) {
     // Configuration Menu
     if (menuIndex == 1) { // WIFI AP
@@ -473,9 +494,20 @@ void ui_btn2_click() {
       menuDepth = 1;
       menuIndex = 0;
     }
+  } else if (menuDepth == 4) {
+    // Información
+    if (menuIndex == 0) {
+      Serial.println(String("[INFO] Version: ") + VERSION);
+    } else if (menuIndex == 1) {
+      Serial.println(String("[INFO] streaming=") + (streaming ? "ON" : "OFF") +
+                     String(" logging=") + (loggingEnabled ? "ON" : "OFF"));
+    } else {
+      menuDepth = 0;
+      menuIndex = 0;
+    }
   } else {
     // Generic Back for other menus
-    if (String(menus[menuDepth].items[menuIndex]) == "Volver") {
+    if (strcmp(menus[menuDepth].items[menuIndex], "Volver") == 0) {
       menuDepth--;
       menuIndex = 0;
     }

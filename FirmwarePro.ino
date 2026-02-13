@@ -50,7 +50,7 @@ const byte CMD = 0xB4;
 const byte TAIL = 0xAB;
 
 // Version
-String VERSION = "Pro V0.0.10";
+String VERSION = "Pro V0.0.11";
 
 // Pins
 #define UART_BAUD 115200
