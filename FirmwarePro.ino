@@ -50,7 +50,7 @@ const byte CMD = 0xB4;
 const byte TAIL = 0xAB;
 
 // Version
-String VERSION = "Pro V0.0.3";
+String VERSION = "Pro V0.0.4";
 
 // Pins
 #define UART_BAUD 115200
@@ -320,6 +320,8 @@ extern void ui_btn2_click();
 extern void ui_btn2_hold();
 
 // Oled Status Helper (used by wifi/main)
+// Renderiza un estado rápido en OLED con hasta 4 líneas de texto.
+// Se usa para feedback de arranque, red, módem y operaciones críticas.
 void oledStatus(const String &l1, const String &l2 = "", const String &l3 = "",
                 const String &l4 = "") {
   u8g2.clearBuffer();
@@ -336,6 +338,8 @@ void oledStatus(const String &l1, const String &l2 = "", const String &l3 = "",
 }
 
 // AT Helper (needed in main)
+// Inicia una sesión AT no bloqueante, guarda expectativas y timeout.
+// La respuesta se procesa luego con atTick() para no congelar el loop.
 void atBegin(const String &cmd, const String &expect1, const String &expect2,
              uint32_t timeout_ms) {
   modem.stream.print("AT");
@@ -347,6 +351,8 @@ void atBegin(const String &cmd, const String &expect1, const String &expect2,
   at.deadline = millis() + timeout_ms;
 }
 
+// Avanza la máquina de estados AT leyendo serial y detectando fin/timeout.
+// También enruta tramas NMEA entrantes al parser GNSS cuando aparecen.
 bool atTick(bool &done, bool &ok) {
   while (SerialAT.available()) {
     String line = SerialAT.readStringUntil('\n');
@@ -387,6 +393,8 @@ bool atTick(bool &done, bool &ok) {
   return false;
 }
 
+// Ejecuta un comando AT de forma bloqueante hasta éxito, error o timeout.
+// Es un helper práctico para setup y tareas puntuales de configuración.
 bool atRun(const String &cmd, const String &expect1, const String &expect2,
            uint32_t timeout_ms) {
   atBegin(cmd, expect1, expect2, timeout_ms);
@@ -399,6 +407,8 @@ bool atRun(const String &cmd, const String &expect1, const String &expect2,
   return ok;
 }
 
+// Envía AT y devuelve la respuesta completa en un String para diagnóstico.
+// Útil cuando se necesita parsear contenido (no solo OK/ERROR).
 bool sendAtSync(const String &cmd, String &resp, uint32_t timeout_ms) {
   atBegin(cmd, "OK", "ERROR", timeout_ms);
   bool done = false, ok = false;
@@ -411,6 +421,8 @@ bool sendAtSync(const String &cmd, String &resp, uint32_t timeout_ms) {
   return ok;
 }
 
+// Consulta operador, tecnología y registro de red desde el módem.
+// Actualiza variables globales usadas en UI, logs y comandos seriales.
 void updateNetworkInfo() {
   String resp;
   if (sendAtSync("+COPS?", resp, 3000)) {
@@ -449,6 +461,8 @@ void updateNetworkInfo() {
 // - "streaming" controla transmisión HTTP.
 // - "loggingEnabled" controla guardado en SD.
 // - Ambos están separados a propósito para evitar acoplar guardar/transmitir.
+// Construye payload/URL de medición según hardware activo y envía por HTTP.
+// Persiste contadores en flash y registra fallos en SD cuando corresponde.
 bool sendCurrentMeasurement() {
   String val;
   String url;
@@ -512,6 +526,8 @@ bool sendCurrentMeasurement() {
 }
 
 // -------------------- SETUP --------------------
+// Inicializa hardware, configuración persistente y servicios base del firmware.
+// Define estado de arranque seguro y prepara módem/GNSS/SD/UI para operación.
 void setup() {
   Serial.begin(115200);
   pinMode(POWER_PIN, OUTPUT);
@@ -697,6 +713,8 @@ void setup() {
 
 // -------------------- LOOP --------------------
 bool FirstLoop = true;
+// Bucle principal no bloqueante: sensores, UI, watchdog y scheduler de tareas.
+// Ejecuta guardado SD y transmisión HTTP en timers separados por configuración.
 void loop() {
   esp_task_wdt_reset();
 
