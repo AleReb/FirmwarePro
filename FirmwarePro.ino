@@ -50,7 +50,7 @@ const byte CMD = 0xB4;
 const byte TAIL = 0xAB;
 
 // Version
-String VERSION = "Pro V0.0.6";
+String VERSION = "Pro V0.0.7";
 
 // Pins
 #define UART_BAUD 115200
@@ -691,10 +691,11 @@ void setup() {
       prefs.putString("csvFile", csvFileName);
       prefs.end();
 
+      // Autoresume SOLO en reinicios claramente inesperados por watchdog/panic.
+      // Evita retomar streaming tras reinicios manuales, power-on o estados ambiguos.
       bool rebootWasUnexpected =
           (rebootReason == "Panic" || rebootReason == "IntWatchdog" ||
-           rebootReason == "TaskWatchdog" || rebootReason == "OtherWatchdog" ||
-           rebootReason == "Brownout" || rebootReason == "Unknown");
+           rebootReason == "TaskWatchdog" || rebootReason == "OtherWatchdog");
 
       if (wasStreamingBeforeBoot && rebootWasUnexpected) {
         streaming = true;
