@@ -50,7 +50,7 @@ const byte CMD = 0xB4;
 const byte TAIL = 0xAB;
 
 // Version
-String VERSION = "Pro V0.0.16";
+String VERSION = "Pro V0.0.17";
 
 // Pins
 #define UART_BAUD 115200
@@ -752,6 +752,12 @@ void loop() {
 
   // PMS & SDS
   readPMS();
+  // Mantener RGB actualizado con PM2.5 aun cuando no haya transmisión HTTP.
+  static uint32_t lastLedUpdateMs = 0;
+  if (millis() - lastLedUpdateMs >= 300) {
+    lastLedUpdateMs = millis();
+    updatePmLed((float)PM25);
+  }
   byte frame[10];
   if (readFrameSDS198(frame)) {
     SDS198PM100 = (uint16_t)((frame[5] << 8) | frame[4]);

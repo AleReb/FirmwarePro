@@ -246,11 +246,11 @@ void drawHeader() {
   drawActivityDot(30, streaming, txActive, lastHttpOk);
   drawActivityDot(39, loggingEnabled, sdActive, lastSdOk);
 
-  // Satellite icon + satélites
+  // Satellite icon + satélites (movido +10 px para evitar solape)
   if (haveFix && gpsStatus == "Fix") {
-    u8g2.drawXBMP(52, 1, 8, 8, satelit_bitmap);
+    u8g2.drawXBMP(62, 1, 8, 8, satelit_bitmap);
     u8g2.setFont(u8g2_font_5x7_tf);
-    u8g2.setCursor(60, 9);
+    u8g2.setCursor(70, 9);
     String sats = satellitesStr;
     if (sats.length() > 2)
       sats = sats.substring(0, 2);
@@ -260,16 +260,16 @@ void drawHeader() {
     u8g2.drawGlyph(60, 9, 0x0118);
   }
 
-  // WiFi/Signal
+  // WiFi/Signal (movido +10 px para evitar solape)
   bool networkError = (csq == 99);
   if (networkError) {
     u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
-    u8g2.drawGlyph(72, 9, 0x0118);
+    u8g2.drawGlyph(82, 9, 0x0118);
   } else {
     u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
-    u8g2.drawGlyph(72, 9, 0x00FD);
+    u8g2.drawGlyph(82, 9, 0x00FD);
     u8g2.setFont(u8g2_font_5x7_tf);
-    u8g2.setCursor(80, 9);
+    u8g2.setCursor(90, 9);
     String csqStr = String(csq);
     if (csqStr.length() > 2)
       csqStr = csqStr.substring(0, 2);
@@ -478,11 +478,9 @@ void ui_btn2_click() {
       menuIndex = 0;
     }
   } else if (menuDepth == 2) {
-    // Mensajes: acciones placeholder con retorno rápido para evitar sensación de bloqueo.
+    // Mensajes: mantenerse en submenú al seleccionar acción (como menú base).
     if (menuIndex < 3) {
       Serial.println(String("[UI] Mensaje seleccionado: ") + menus[2].items[menuIndex]);
-      menuDepth = 1;
-      menuIndex = 0;
     } else {
       menuDepth = 1;
       menuIndex = 0;
