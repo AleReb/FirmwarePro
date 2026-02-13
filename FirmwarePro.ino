@@ -50,7 +50,7 @@ const byte CMD = 0xB4;
 const byte TAIL = 0xAB;
 
 // Version
-String VERSION = "Pro V0.0.9";
+String VERSION = "Pro V0.0.10";
 
 // Pins
 #define UART_BAUD 115200
@@ -784,7 +784,7 @@ void loop() {
 
   // Display Update
   static uint32_t lastDisplayUpdate = 0;
-  if (millis() - lastDisplayUpdate > 100) {
+  if (millis() - lastDisplayUpdate > 60) {
     lastDisplayUpdate = millis();
     renderDisplay();
   }
@@ -806,7 +806,6 @@ void loop() {
       displayState = DISP_SD_SAVED;
       displayStateStartTime = millis();
       renderDisplay();
-      delay(200);
     }
   }
 

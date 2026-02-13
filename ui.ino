@@ -203,31 +203,30 @@ void drawBatteryDynamic(int xPos, int yPos, float v) {
   }
 }
 
-// Renderiza cabecera de pantalla (hora, GNSS, señal y batería).
-// Refleja estado de fix y conectividad en tiempo real.
-// Dibuja badge de actividad para transmisión (U) o guardado SD (S).
-// enabled=modo activo, active=actividad reciente, ok=último resultado.
-void drawActivityBadge(int x, char label, bool enabled, bool active, bool ok) {
-  // Caja 8x8 sobre header superior
-  u8g2.drawFrame(x, 1, 8, 8);
-  if (enabled) {
-    if (active) {
-      // Si actividad reciente: relleno sólido para resaltar acción en curso
-      u8g2.drawBox(x + 1, 2, 6, 6);
-      u8g2.setDrawColor(0);
-      u8g2.setCursor(x + 2, 8);
-      u8g2.print(label);
-      u8g2.setDrawColor(1);
-    } else {
-      u8g2.setCursor(x + 2, 8);
-      u8g2.print(label);
-    }
+// Dibuja un interruptor de estado con icono en header para UPLINK/SD.
+// enabled=modo activo, active=actividad reciente, ok=resultado último intento.
+void drawActivitySwitch(int x, uint16_t icon, bool enabled, bool active, bool ok) {
+  // Icono superior
+  u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
+  u8g2.drawGlyph(x + 2, 8, icon);
 
-    // Marca de error rápida en esquina si último intento falló
-    if (!ok) {
-      u8g2.drawPixel(x + 7, 1);
-      u8g2.drawPixel(x + 6, 2);
-    }
+  // Interruptor (12x7)
+  const int y = 1;
+  u8g2.drawRFrame(x + 8, y, 12, 7, 2);
+
+  // Knob: izquierda OFF, derecha ON
+  int knobX = enabled ? (x + 14) : (x + 9);
+  u8g2.drawBox(knobX, y + 1, 5, 5);
+
+  // Actividad reciente: “halo” para mostrar operación viva.
+  if (active) {
+    u8g2.drawFrame(x + 7, y, 14, 9);
+  }
+
+  // Error último intento: pixel de alerta
+  if (enabled && !ok) {
+    u8g2.drawPixel(x + 21, y);
+    u8g2.drawPixel(x + 20, y + 1);
   }
 }
 
@@ -235,13 +234,13 @@ void drawHeader() {
   u8g2.setFont(u8g2_font_5x7_tf);
   u8g2.drawStr(0, 9, getClockTime().c_str());
 
-  // Indicadores críticos de estado:
-  // U = transmisión HTTP, S = guardado SD.
+  // Indicadores críticos de estado con iconos + interruptor
+  // Uplink (0x01F4 aprox up/upload) y SD/guardar (0x0176)
   uint32_t now = millis();
   bool txActive = (now - lastHttpActivityMs) < 1200;
   bool sdActive = (now - lastSdActivityMs) < 1200;
-  drawActivityBadge(48, 'U', streaming, txActive, lastHttpOk);
-  drawActivityBadge(57, 'S', loggingEnabled, sdActive, lastSdOk);
+  drawActivitySwitch(38, 0x01F4, streaming, txActive, lastHttpOk);
+  drawActivitySwitch(62, 0x0176, loggingEnabled, sdActive, lastSdOk);
 
   // Satellite icon (custom bitmap)
   if (haveFix && gpsStatus == "Fix") {
@@ -431,6 +430,7 @@ void ui_btn1_click() {
   lastOledActivity = millis();
   if (config.oledAutoOff)
     u8g2.setPowerSave(0);
+  renderDisplay();
 }
 
 // BTN2 Click: Select / Enter
@@ -480,6 +480,8 @@ void ui_btn2_click() {
       menuIndex = 0;
     }
   }
+
+  renderDisplay();
 }
 
 // BTN2 Hold: Action / Back
