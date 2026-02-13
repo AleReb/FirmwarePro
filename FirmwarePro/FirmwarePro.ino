@@ -50,7 +50,7 @@ const byte CMD = 0xB4;
 const byte TAIL = 0xAB;
 
 // Firmware version
-String VERSION = "Pro V0.0.18";
+String VERSION = "Pro V0.0.19";
 
 // Global states
 bool rtcOK = false;
@@ -298,7 +298,6 @@ bool sendCurrentMeasurement();
 // UI Event Handlers
 extern void ui_btn1_click();
 extern void ui_btn2_click();
-extern void ui_btn2_hold();
 
 // Oled Status Helper (used by wifi/main)
 // Renderiza un estado rápido en OLED con hasta 4 líneas de texto.
@@ -598,13 +597,10 @@ void setup() {
   // BUTTONS (OneButton)
   btn1.attachClick(ui_btn1_click);
   btn2.attachClick(ui_btn2_click);
-  btn2.attachLongPressStart(ui_btn2_hold);
   // Ajuste de respuesta de botones para navegación de menús más ágil.
   btn1.setDebounceTicks(20);
   btn2.setDebounceTicks(20);
   btn2.setClickTicks(160);
-  // Hold más largo para evitar activaciones accidentales durante navegación.
-  btn2.setPressTicks(800);
 
   // MODEM
   SerialAT.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);
