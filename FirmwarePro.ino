@@ -50,7 +50,7 @@ const byte CMD = 0xB4;
 const byte TAIL = 0xAB;
 
 // Version
-String VERSION = "Pro V0.0.5";
+String VERSION = "Pro V0.0.6";
 
 // Pins
 #define UART_BAUD 115200
@@ -488,23 +488,22 @@ bool sendCurrentMeasurement() {
   if (SHT31OK == true) {
     const String v18 = isnan(tempsht31) ? "0" : safeFloatStr(tempsht31);
     const String v19 = isnan(humsht31) ? "0" : safeFloatStr(humsht31);
-    val = v1 + "," + v2 + "," + v3 + "," + v4 + "," + v5 + "," + v6 + "," +
-          v7 + "," + v8 + "," + v9 + "," + v10 + "," + v11 + "," + v12 + "," +
-          v13 + "," + v14 + "," + v15 + "," + v16 + "," + v17 + "," + v18 +
-          "," + v19;
+    val = v1 + "," + v2 + "," + v3 + "," + v4 + "," + v5 + "," + v6 + "," + v7 +
+          "," + v8 + "," + v9 + "," + v10 + "," + v11 + "," + v12 + "," + v13 +
+          "," + v14 + "," + v15 + "," + v16 + "," + v17 + "," + v18 + "," + v19;
     url = String(API_BASE) + "?idsSensores=" + IDS_SENSORES +
           "&idsVariables=" + IDS_VARIABLESSHT31 + "&valores=" + val;
   } else if (String(DEVICE_ID_STR) == "06") {
     const String v18 = safeUIntStr(SDS198PM100);
-    val = v1 + "," + v2 + "," + v3 + "," + v4 + "," + v5 + "," + v6 + "," +
-          v7 + "," + v8 + "," + v9 + "," + v10 + "," + v11 + "," + v12 + "," +
-          v13 + "," + v14 + "," + v15 + "," + v16 + "," + v17 + "," + v18;
+    val = v1 + "," + v2 + "," + v3 + "," + v4 + "," + v5 + "," + v6 + "," + v7 +
+          "," + v8 + "," + v9 + "," + v10 + "," + v11 + "," + v12 + "," + v13 +
+          "," + v14 + "," + v15 + "," + v16 + "," + v17 + "," + v18;
     url = String(API_BASE) + "?idsSensores=" + IDS_SENSORES +
           "&idsVariables=" + IDS_VARIABLES06 + "&valores=" + val;
   } else {
-    val = v1 + "," + v2 + "," + v3 + "," + v4 + "," + v5 + "," + v6 + "," +
-          v7 + "," + v8 + "," + v9 + "," + v10 + "," + v11 + "," + v12 + "," +
-          v13 + "," + v14 + "," + v15 + "," + v16 + "," + v17;
+    val = v1 + "," + v2 + "," + v3 + "," + v4 + "," + v5 + "," + v6 + "," + v7 +
+          "," + v8 + "," + v9 + "," + v10 + "," + v11 + "," + v12 + "," + v13 +
+          "," + v14 + "," + v15 + "," + v16 + "," + v17;
     url = String(API_BASE) + "?idsSensores=" + IDS_SENSORES +
           "&idsVariables=" + IDS_VARIABLES + "&valores=" + val;
   }
@@ -701,7 +700,8 @@ void setup() {
         streaming = true;
         loggingEnabled = true;
         writeErrorLogHeader();
-        Serial.println("[BOOT] Auto-resume enabled (previous state + unexpected reboot)");
+        Serial.println(
+            "[BOOT] Auto-resume enabled (previous state + unexpected reboot)");
       } else {
         Serial.println("[BOOT] SD detected. Streaming/logging remain OFF");
       }

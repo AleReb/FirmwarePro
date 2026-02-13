@@ -45,7 +45,9 @@ bool syncRtcFromModem();      // Assuming implemented or needed
 void resetModemSyncCounter(); // Assuming implemented or needed
 bool getModemEpoch(uint32_t &epoch);
 
-// Procesa comandos por puerto serie para operación, diagnóstico y mantenimiento.`r`n// Permite inspección y control en campo sin recompilar firmware.`r`nvoid processSerialCommand() {
+// Procesa comandos por puerto serie para operación, diagnóstico y mantenimiento.
+// Permite inspección y control en campo sin recompilar firmware.
+void processSerialCommand() {
   if (!Serial.available())
     return;
 
