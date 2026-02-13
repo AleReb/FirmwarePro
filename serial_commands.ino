@@ -276,7 +276,8 @@ void processSerialCommand() {
     } else {
       Serial.println("[STREAM] Starting via serial command...");
       streaming = true;
-      loggingEnabled = SDOK;
+      // Etapa de integración: iniciar transmisión con logging OFF.
+      loggingEnabled = false;
       Serial.printf("[STREAM] ✓ Started (SD logging: %s)\n",
                     loggingEnabled ? "ON" : "OFF");
     }

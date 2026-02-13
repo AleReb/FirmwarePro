@@ -426,26 +426,25 @@ void ui_btn2_hold() {
       u8g2.sendBuffer();
       delay(1000);
     } else {
-      // START
+      // START (solo transmisión)
+      // NOTA: por diseño de integración, NO habilitar logging al iniciar.
+      // loggingEnabled debe controlarse de forma explícita en una etapa posterior.
       streaming = true;
-      // Init SD if needed
+      loggingEnabled = false;
+
+      // Verificar SD y preparar nombre diario, pero sin escribir aún.
       if (!SDOK) {
         spiSD.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_CS);
         SDOK = SD.begin(SD_CS, spiSD);
-        loggingEnabled = SDOK;
-        if (SDOK) {
-          csvFileName = generateCSVFileName();
-          writeCSVHeader();
-          writeErrorLogHeader();
-          prefs.begin("system", false);
-          prefs.putString("csvFile", csvFileName);
-          prefs.end();
-        }
-      } else {
-        loggingEnabled = true;
+      }
+      if (SDOK) {
+        csvFileName = generateCSVFileName();
+        prefs.begin("system", false);
+        prefs.putString("csvFile", csvFileName);
+        prefs.end();
       }
 
-      Serial.println("[UI] User Request: START Streaming/Logging");
+      Serial.println("[UI] User Request: START Streaming (logging OFF)");
       prefs.begin("system", false);
       prefs.putBool("streaming", true);
       prefs.end();
