@@ -129,6 +129,8 @@ uint8_t menuIndex = 0; // Índice seleccionado
 // Guard de acciones UI para evitar dobles disparos por rebote/eventos solapados.
 static uint32_t uiLastActionMs = 0;
 const uint32_t UI_ACTION_GUARD_MS = 70;
+// Evita que un long click dispare también un click corto al soltar.
+static bool btn2LongConsumed = false;
 
 static bool uiCanHandleAction() {
   uint32_t now = millis();
@@ -457,6 +459,10 @@ void ui_btn1_click() {
 // Evento BTN2 corto: entra/selecciona opciones del menú.
 // Controla navegación entre niveles y acciones no críticas.
 void ui_btn2_click() {
+  if (btn2LongConsumed) {
+    btn2LongConsumed = false;
+    return;
+  }
   if (!uiCanHandleAction())
     return;
   lastOledActivity = millis();
@@ -535,6 +541,7 @@ void ui_btn2_click() {
 // Evento BTN2 largo: start/stop del flujo principal en pantalla raíz.
 // En submenús actúa como retorno rápido al nivel anterior.
 void ui_btn2_hold() {
+  btn2LongConsumed = true;
   if (!uiCanHandleAction())
     return;
   lastOledActivity = millis();
